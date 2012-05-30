@@ -43,9 +43,9 @@ void GC_SetVideoMode(u8 videomode)
 		rmode = &TVEurgb60Hz480IntDf;
 		memflag = 5;
 	}
-	else if(videomode == 4)
+	else if(videomode == 4 ||videomode == 6)
 		rmode = &TVNtsc480Prog;
-	else if(videomode == 5)
+	else if(videomode == 5 || videomode == 7)
 	{
 		rmode = &TVEurgb60Hz480Prog;
 		memflag = 5;
@@ -126,6 +126,10 @@ void DML_New_SetOptions(DML_CFG *BooterCFG)
 
 	//Write options into memory
 	memcpy((void *)0xC0001700, DMLCfg, sizeof(DML_CFG));
+	
+	//DML v1.2+
+	memcpy((void *)0xC1200000, DMLCfg, sizeof(DML_CFG));
+
 	free(DMLCfg);
 }
 

@@ -47,6 +47,7 @@ enum dmlvideomode
 	DML_VID_FORCE_PAL60	= (1<<1),
 	DML_VID_FORCE_NTSC	= (1<<2),
 	DML_VID_FORCE_PROG	= (1<<3),
+	DML_VID_PROG_PATCH	= (1<<4),
 };
 
 void GC_SetVideoMode(u8 videomode);
