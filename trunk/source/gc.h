@@ -51,7 +51,7 @@ enum dmlvideomode
 
 void GC_SetVideoMode(u8 videomode);
 void GC_SetLanguage(u8 lang);
-void DML_New_SetOptions(const char *GamePath);
+void DML_New_SetOptions(DML_CFG *BooterCFG);
 void DML_Old_SetOptions(const char *GamePath);
 #endif //GC_H_
 
