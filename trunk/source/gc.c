@@ -59,6 +59,7 @@ void GC_SetVideoMode(u8 videomode)
 	DCFlushRange((void *)(0x800000CC), 4);
 	ICInvalidateRange((void *)(0x800000CC), 4);
 
+	VIDEO_Init();
 	VIDEO_Configure(rmode);
 	m_frameBuf = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
 
@@ -109,7 +110,7 @@ void GC_SetLanguage(u8 lang)
 
 void DML_New_SetOptions(char *GamePath)
 {
-	DML_CFG *DMLCfg = (DML_CFG*)memalign(32, sizeof(DML_CFG));
+	DML_CFG *DMLCfg = (DML_CFG*)malloc(sizeof(DML_CFG));
 	memset(DMLCfg, 0, sizeof(DML_CFG));
 
 	DMLCfg->Magicbytes = 0xD1050CF6;
