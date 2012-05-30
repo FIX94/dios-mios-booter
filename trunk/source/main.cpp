@@ -1,7 +1,7 @@
 
 //============================================================================
 // Name        : main.cpp
-// Version     : v1.01
+// Version     : WIP SVN
 // Copyright   : 2012 FIX94
 // Description : A small and easy DML Game Booter
 //============================================================================
@@ -16,13 +16,12 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <malloc.h>
+
 #include "gc.h"
-#include "sdhc.h"
 #include "defines.h"
 #include "config.hpp"
-
-#include <fat.h>
-#include <sdcard/wiisd_io.h>
+#include "devicemounter.h"
+#include "svnrev.h"
 
 using namespace std;
 
@@ -326,7 +325,7 @@ void OptionsMenu()
 		VIDEO_WaitVSync();
 		printf("\x1b[2J");
 		printf("\x1b[37m");
-		printf("DML Game Booter v1.01 Final by FIX94 \n \n");
+		printf("DML Game Booter SVN r%s by FIX94 \n \n", SVN_REV);
 		printf("Options\nPress the B Button to return to game selection \nor +/- (X/Y) to switch page.\n");
 		printf(" \nPage %i/%i\n", Page, Pages);
 		for(u8 i = PageSize * (Page - 1); i < OptionList.size(); i++)
@@ -392,9 +391,7 @@ int main(int argc, char *argv[])
 	SetDefaultConfig();
 
 	/* Mount SD Card */
-	DISC_INTERFACE storage = __io_wiisd;
-	if (fatMountSimple("sd", &storage) < 0)
-		return -1;
+	SDCard_Init();
 
 	/* Init Video */
 	VIDEO_Init();
@@ -526,7 +523,7 @@ int main(int argc, char *argv[])
 		VIDEO_WaitVSync();
 		printf("\x1b[2J");
 		printf("\x1b[37m");
-		printf("DML Game Booter v1.01 Final by FIX94 \n \n");
+		printf("DML Game Booter SVN r%s by FIX94 \n \n", SVN_REV);
 		if(!MainMenuAutoboot)
 			printf("Please select a game with the Wiimote(GameCube Controller) Digital Pad.\n");
 		else
@@ -568,8 +565,7 @@ int main(int argc, char *argv[])
 	if(exit)
 	{
 		/* Unmount SD Card */
-		fatUnmount("sd");
-		storage.shutdown();
+		SDCard_deInit();
 		printf("HOME/Start Button pressed, exiting...\n");
 		WPAD_Shutdown();
 		wait(3);
@@ -603,8 +599,7 @@ int main(int argc, char *argv[])
 		DML_New_SetOptions(BooterCFG);
 
 	/* Unmount SD Card */
-	fatUnmount("sd");
-	storage.shutdown();
+	SDCard_deInit();
 
 	if(DriveReset)
 	{
