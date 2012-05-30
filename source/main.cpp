@@ -1,7 +1,7 @@
 
 //============================================================================
 // Name        : main.cpp
-// Version     : v0.6
+// Version     : v0.7
 // Copyright   : 2012 FIX94
 // Description : A small and easy DML Game Booter
 //============================================================================
@@ -19,6 +19,7 @@
 #include "gc.h"
 #include "sdhc.h"
 #include "defines.h"
+#include "config.hpp"
 
 #include <fat.h>
 #include <sdcard/wiisd_io.h>
@@ -34,62 +35,70 @@ static u32 outbuf[8] ATTRIBUTE_ALIGN(32);
 static s32 di_fd = -1;
 
 DML_CFG *BooterCFG;
+Config BooterINI;
+bool Autoboot;
 
-void WriteConfig()
+void WriteConfig(const char *Domain)
 {
-	ofstream outfile;
-	outfile.open("sd:/games/DML_BOOTER.bin", ios::binary);
-	outfile.write((char*)BooterCFG, sizeof(DML_CFG));
-	outfile.close();
+	BooterINI.setBool(Domain, "ActivityLED", (BooterCFG->Config & DML_CFG_ACTIVITY_LED));
+	BooterINI.setBool(Domain, "PadReset", (BooterCFG->Config & DML_CFG_PADHOOK));
+	BooterINI.setBool(Domain, "Cheats", (BooterCFG->Config & DML_CFG_CHEATS));
+	BooterINI.setBool(Domain, "NMM", (BooterCFG->Config & DML_CFG_NMM));
+	BooterINI.setBool(Domain, "NMM_Debug", (BooterCFG->Config & DML_CFG_NMM_DEBUG));
+	BooterINI.setBool(Domain, "No_Disc_Patch", (BooterCFG->Config & DML_CFG_NODISC));
+	BooterINI.setBool(Domain, "Debugger", (BooterCFG->Config & DML_CFG_DEBUGGER));
+	BooterINI.setBool(Domain, "Wait_for_Debugger", (BooterCFG->Config & DML_CFG_DEBUGWAIT));
+	BooterINI.save(false);
 }
 
-void ReadConfig()
+void ReadConfig(const char *Domain)
 {
-	ifstream infile;
-	infile.open("sd:/games/DML_BOOTER.bin", ios::binary);
-	if(infile.is_open())
+	if(BooterINI.loaded())
 	{
-		infile.seekg(0, ios::end);
-		if(infile.tellg() != sizeof(DML_CFG))
-		{
-			infile.close();
-			WriteConfig();
-			return;
-		}
-		infile.seekg(0, ios::beg);
-		infile.read((char*)BooterCFG, sizeof(DML_CFG));
-		infile.close();
+		if(BooterINI.getBool(Domain, "ActivityLED"))
+			BooterCFG->Config |= DML_CFG_ACTIVITY_LED;
+		else
+			BooterCFG->Config &= ~DML_CFG_ACTIVITY_LED;
+		if(BooterINI.getBool(Domain, "PadReset"))
+			BooterCFG->Config |= DML_CFG_PADHOOK;
+		else
+			BooterCFG->Config &= ~DML_CFG_PADHOOK;
+		if(BooterINI.getBool(Domain, "Cheats"))
+			BooterCFG->Config |= DML_CFG_CHEATS;
+		else
+			BooterCFG->Config &= ~DML_CFG_CHEATS;
+		if(BooterINI.getBool(Domain, "NMM"))
+			BooterCFG->Config |= DML_CFG_NMM;
+		else
+			BooterCFG->Config &= ~DML_CFG_NMM;
+		if(BooterINI.getBool(Domain, "NMM_Debug"))
+			BooterCFG->Config |= DML_CFG_NMM_DEBUG;
+		else
+			BooterCFG->Config &= ~DML_CFG_NMM_DEBUG;
+		if(BooterINI.getBool(Domain, "No_Disc_Patch"))
+			BooterCFG->Config |= DML_CFG_NODISC;
+		else
+			BooterCFG->Config &= ~DML_CFG_NODISC;
+		if(BooterINI.getBool(Domain, "Debugger"))
+			BooterCFG->Config |= DML_CFG_DEBUGGER;
+		else
+			BooterCFG->Config &= ~DML_CFG_DEBUGGER;
+		if(BooterINI.getBool(Domain, "Wait_for_Debugger"))
+			BooterCFG->Config |= DML_CFG_DEBUGWAIT;
+		else
+			BooterCFG->Config &= ~DML_CFG_DEBUGWAIT;
 	}
 	else
-		WriteConfig();
+		WriteConfig(Domain);
 }
 
 void SetDefaultConfig()
 {
 	BooterCFG->Magicbytes = 0xD1050CF6;
 	BooterCFG->CfgVersion = 0x00000001;
-	BooterCFG->VideoMode |= DML_VID_NONE;
-
-	#ifdef ACTIVITYLED
-		BooterCFG->Config |= DML_CFG_ACTIVITY_LED;
-	#endif
-
-	#ifdef PADRESET
-		BooterCFG->Config |= DML_CFG_PADHOOK;
-	#endif
-
-	#ifdef CHEATS
-		BooterCFG->Config |= DML_CFG_CHEATS;
-	#endif
-
-	#ifdef NMM
-		BooterCFG->Config |= DML_CFG_NMM;
-	#endif
-
-	#ifdef NODISC
-		BooterCFG->Config |= DML_CFG_NODISC;
-	#endif
+	BooterCFG->VideoMode |= DML_VID_DML_AUTO;
 }
+
 void wait(u32 s)
 {
 	time_t t;
@@ -128,14 +137,18 @@ void OptionsMenu()
 	OptionNameList.push_back("Pad Hook          ");	OptionList.push_back(DML_CFG_PADHOOK);
 	OptionNameList.push_back("No Disc Patch     ");	OptionList.push_back(DML_CFG_NODISC);
 
-	ReadConfig();
+	if(!Autoboot)
+		ReadConfig("GENERAL");
+	else
+		ReadConfig(AUTOBOOT_GAME_ID);
+
 	while(!done)
 	{
 		/* Clear console */
 		VIDEO_WaitVSync();
 		printf("\x1b[2J");
 		printf("\x1b[37m");
-		printf("DML Game Booter v0.6 by FIX94 \n \n");
+		printf("DML Game Booter v0.7 by FIX94 \n \n");
 		printf("Options\nPress the B Button to return to game selection.");
 		for(u8 i = 0; i < OptionList.size(); i++)
 		{
@@ -162,7 +175,10 @@ void OptionsMenu()
 			verticalselect = 1;
 	}
 	/* Set new Options */
-	WriteConfig();
+	if(!Autoboot)
+		WriteConfig("GENERAL");
+	else
+		WriteConfig(AUTOBOOT_GAME_ID);
 }
 
 int main(int argc, char *argv[]) 
@@ -193,14 +209,19 @@ int main(int argc, char *argv[])
 
 	bool done = false;
 	bool exit = false;
-	bool autoboot = false;
+	Autoboot = false;
 
 	#ifdef AUTOBOOT
-		autoboot = true;
+		Autoboot = true;
 	#endif
 
-	if(!autoboot)
-		ReadConfig();
+	bool MainMenuAutoboot = Autoboot;
+
+	BooterINI.load("sd:/games/dml_booter.ini");
+	if(!Autoboot)
+		ReadConfig("GENERAL");
+	else
+		ReadConfig(AUTOBOOT_GAME_ID);
 
 	const char *DMLgameDir = "sd:/games/";
 
@@ -240,11 +261,11 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(autoboot)
+	if(Autoboot)
 	{
-		for(u8 i = 0; i < DirEntryNames.size(); i++)
+		for(u8 i = 0; i < DirEntryIDs.size(); i++)
 		{
-			if(strcmp(DirEntries.at(i).c_str(), AUTOBOOT_GAME) == 0)
+			if(strcmp(DirEntryIDs.at(i).c_str(), AUTOBOOT_GAME_ID) == 0)
 			{
 				position = i + 1;
 				break;
@@ -261,21 +282,18 @@ int main(int argc, char *argv[])
 		VIDEO_WaitVSync();
 		printf("\x1b[2J");
 		printf("\x1b[37m");
-		printf("DML Game Booter v0.6 by FIX94 \n \n");
-		if(!autoboot)
+		printf("DML Game Booter v0.7 by FIX94 \n \n");
+		if(!MainMenuAutoboot)
 			printf("Please select a game with the Wiimote Digital Pad.\n");
 		else
 		{
 			printf("Autoboot requested!\nPress any button to abort... %i\n", int(t-time(NULL)));
 			WPAD_ScanPads();
 			if(WPAD_ButtonsDown(0))
-			{
-				autoboot = false;
-				ReadConfig();
-			}
+				MainMenuAutoboot = false;
 			if(time(NULL) >= t)
 				break;
-			if(autoboot)
+			if(MainMenuAutoboot)
 				continue;
 		}
 		printf("<<<  %s  >>>\n \n", DirEntryNames.at(position - 1).c_str());
@@ -316,6 +334,7 @@ int main(int argc, char *argv[])
 		printf(" \nSelected: %s\nBooting game...\n", DirEntryNames.at(position - 1).c_str());
 
 	WPAD_Shutdown();
+	BooterINI.unload();
 
 	snprintf(BooterCFG->GamePath, sizeof(BooterCFG->GamePath), "/games/%s/game.iso", DirEntries.at(position - 1).c_str());
 	BooterCFG->Config |= DML_CFG_GAME_PATH;
