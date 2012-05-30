@@ -144,8 +144,6 @@ void DML_New_SetOptions(const char *GamePath)
 		DMLCfg->Config |= DML_CFG_NODISC;
 	#endif
 
-	DMLCfg->Config |= DML_CFG_DEBUGGER;
-
 	/*
 	if(DMLvideoMode == 1)
 		DMLCfg->VideoMode |= DML_VID_FORCE_PAL50;
