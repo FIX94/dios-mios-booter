@@ -1,7 +1,7 @@
 
 //============================================================================
 // Name        : main.cpp
-// Version     : v0.7
+// Version     : v0.8
 // Copyright   : 2012 FIX94
 // Description : A small and easy DML Game Booter
 //============================================================================
@@ -37,9 +37,63 @@ static s32 di_fd = -1;
 DML_CFG *BooterCFG;
 Config BooterINI;
 bool Autoboot;
+string GC_Language_string;
+vector<string> GC_Language_strings;
+u8 GC_Language;
+string GC_Video_string;
+vector<string> GC_Video_strings;
+u8 GC_Video_Mode;
+
+string GetLanguage()
+{
+	bool found = false;
+	u8 i;
+	for(i = 0; i < GC_Language_strings.size(); i++)
+	{
+		if(strcasecmp(GC_Language_strings.at(i).c_str(), GC_Language_string.c_str()) == 0)
+		{
+			found = true;
+			GC_Language = i;
+			break;
+		}
+	}
+	if(!found)
+	{
+		GC_Language_string = GC_Language_strings.at(0);
+		GC_Language = 0;
+		i = 0;
+	}
+
+	return GC_Language_strings.at(i);
+}
+
+string GetVideoMode()
+{
+	bool found = false;
+	u8 i;
+	for(i = 0; i < GC_Video_strings.size(); i++)
+	{
+		if(strcasecmp(GC_Video_strings.at(i).c_str(), GC_Video_string.c_str()) == 0)
+		{
+			found = true;
+			GC_Video_Mode = i;
+			break;
+		}
+	}
+	if(!found)
+	{
+		GC_Video_string = GC_Video_strings.at(0);
+		GC_Video_Mode = 0;
+		i = 0;
+	}
+
+	return GC_Video_strings.at(i);
+}
 
 void WriteConfig(const char *Domain)
 {
+	GetLanguage();
+	GetVideoMode();
 	BooterINI.setBool(Domain, "ActivityLED", (BooterCFG->Config & DML_CFG_ACTIVITY_LED));
 	BooterINI.setBool(Domain, "PadReset", (BooterCFG->Config & DML_CFG_PADHOOK));
 	BooterINI.setBool(Domain, "Cheats", (BooterCFG->Config & DML_CFG_CHEATS));
@@ -48,7 +102,69 @@ void WriteConfig(const char *Domain)
 	BooterINI.setBool(Domain, "No_Disc_Patch", (BooterCFG->Config & DML_CFG_NODISC));
 	BooterINI.setBool(Domain, "Debugger", (BooterCFG->Config & DML_CFG_DEBUGGER));
 	BooterINI.setBool(Domain, "Wait_for_Debugger", (BooterCFG->Config & DML_CFG_DEBUGWAIT));
+	BooterINI.setString(Domain, "Language", GC_Language_string);
+	BooterINI.setString(Domain, "VideoMode", GC_Video_string);
 	BooterINI.save(false);
+}
+
+void NextLanguage()
+{
+	string current_GC_Language_string = GetLanguage();
+	for(u8 i = 0; i < GC_Language_strings.size(); i++)
+	{
+		if(strcasecmp(current_GC_Language_string.c_str(), GC_Language_strings.at(i).c_str()) == 0)
+		{
+			if(i+1 == (u8)GC_Language_strings.size())
+				GC_Language_string = GC_Language_strings.front();
+			else
+				GC_Language_string = GC_Language_strings.at(i+1).c_str();
+		}
+	}
+}
+
+void PrevLanguage()
+{
+	string current_GC_Language_string = GetLanguage();
+	for(u8 i = 0; i < GC_Language_strings.size(); i++)
+	{
+		if(strcasecmp(current_GC_Language_string.c_str(), GC_Language_strings.at(i).c_str()) == 0)
+		{
+			if(i == 0)
+				GC_Language_string = GC_Language_strings.back();
+			else
+				GC_Language_string = GC_Language_strings.at(i-1).c_str();
+		}
+	}
+}
+
+void NextVideoMode()
+{
+	string current_GC_Video_string = GetVideoMode();
+	for(u8 i = 0; i < GC_Video_strings.size(); i++)
+	{
+		if(strcasecmp(current_GC_Video_string.c_str(), GC_Video_strings.at(i).c_str()) == 0)
+		{
+			if(i+1 == (u8)GC_Video_strings.size())
+				GC_Video_string = GC_Video_strings.front();
+			else
+				GC_Video_string = GC_Video_strings.at(i+1).c_str();
+		}
+	}
+}
+
+void PrevVideoMode()
+{
+	string current_GC_Video_string = GetVideoMode();
+	for(u8 i = 0; i < GC_Video_strings.size(); i++)
+	{
+		if(strcasecmp(current_GC_Video_string.c_str(), GC_Video_strings.at(i).c_str()) == 0)
+		{
+			if(i == 0)
+				GC_Video_string = GC_Video_strings.back();
+			else
+				GC_Video_string = GC_Video_strings.at(i-1).c_str();
+		}
+	}
 }
 
 void ReadConfig(const char *Domain)
@@ -87,6 +203,10 @@ void ReadConfig(const char *Domain)
 			BooterCFG->Config |= DML_CFG_DEBUGWAIT;
 		else
 			BooterCFG->Config &= ~DML_CFG_DEBUGWAIT;
+		GC_Language_string = BooterINI.getString(Domain, "Language", "Wii");
+		GetLanguage();
+		GC_Video_string = BooterINI.getString(Domain, "VideoMode", "Auto");
+		GetVideoMode();
 	}
 	else
 		WriteConfig(Domain);
@@ -97,6 +217,14 @@ void SetDefaultConfig()
 	BooterCFG->Magicbytes = 0xD1050CF6;
 	BooterCFG->CfgVersion = 0x00000001;
 	BooterCFG->VideoMode |= DML_VID_DML_AUTO;
+
+	GC_Language_strings.push_back("Wii"); GC_Language_strings.push_back("English");
+	GC_Language_strings.push_back("German"); GC_Language_strings.push_back("French");
+	GC_Language_strings.push_back("Spanish"); GC_Language_strings.push_back("Italian");
+	GC_Language_strings.push_back("Dutch");
+
+	GC_Video_strings.push_back("Auto"); GC_Video_strings.push_back("PAL50");
+	GC_Video_strings.push_back("NTSC");
 }
 
 void wait(u32 s)
@@ -108,15 +236,35 @@ void wait(u32 s)
 
 const char *GetOption(u32 Option)
 {
-	if(BooterCFG->Config & Option)
+	if(Option == 0x4C414E47) //LANG
+		return GetLanguage().c_str();
+	else if(Option == 0x56494445) //VIDE
+		return GetVideoMode().c_str();
+	else if(BooterCFG->Config & Option)
 		return "On";
 	else
 		return "Off";
 }
 
-void SetOption(u32 Option)
+void SetOption(u32 Option, u8 direction)
 {
-	if(BooterCFG->Config & Option)
+	if(Option == 0x4C414E47) //LANG
+	{
+		if(direction == 9) //Right
+			NextLanguage();
+		else if(direction == 1) //Left
+			PrevLanguage();
+		return;
+	}
+	else if(Option == 0x56494445) //VIDE
+	{
+		if(direction == 9) //Right
+			NextVideoMode();
+		else if(direction == 1) //Left
+			PrevVideoMode();
+		return;
+	}
+	else if(BooterCFG->Config & Option)
 		BooterCFG->Config &= ~Option;
 	else
 		BooterCFG->Config |= Option;
@@ -124,8 +272,14 @@ void SetOption(u32 Option)
 
 void OptionsMenu()
 {
+	if(!Autoboot)
+		ReadConfig("GENERAL");
+	else
+		ReadConfig(AUTOBOOT_GAME_ID);
+
 	bool done = false;
 	u8 verticalselect = 1;
+
 	vector<u32> OptionList;
 	vector<string> OptionNameList;
 	OptionNameList.push_back("Cheats            ");	OptionList.push_back(DML_CFG_CHEATS);
@@ -136,11 +290,8 @@ void OptionsMenu()
 	OptionNameList.push_back("Activity LED      ");	OptionList.push_back(DML_CFG_ACTIVITY_LED);
 	OptionNameList.push_back("Pad Hook          ");	OptionList.push_back(DML_CFG_PADHOOK);
 	OptionNameList.push_back("No Disc Patch     ");	OptionList.push_back(DML_CFG_NODISC);
-
-	if(!Autoboot)
-		ReadConfig("GENERAL");
-	else
-		ReadConfig(AUTOBOOT_GAME_ID);
+	OptionNameList.push_back("Language          "); OptionList.push_back(0x4C414E47); //LANG 
+	OptionNameList.push_back("Video Mode        "); OptionList.push_back(0x56494445); //VIDE
 
 	while(!done)
 	{
@@ -148,7 +299,7 @@ void OptionsMenu()
 		VIDEO_WaitVSync();
 		printf("\x1b[2J");
 		printf("\x1b[37m");
-		printf("DML Game Booter v0.7 by FIX94 \n \n");
+		printf("DML Game Booter v0.8 by FIX94 \n \n");
 		printf("Options\nPress the B Button to return to game selection.");
 		for(u8 i = 0; i < OptionList.size(); i++)
 		{
@@ -159,15 +310,16 @@ void OptionsMenu()
 			printf(" \n%s           <<< %s >>>\n", OptionNameList.at(i).c_str(), GetOption(OptionList.at(i)));
 		}
 		WPAD_ScanPads();
-		if(WPAD_ButtonsDown(0) == WPAD_BUTTON_RIGHT)
-			SetOption(OptionList.at(verticalselect - 1));
-		if(WPAD_ButtonsDown(0) == WPAD_BUTTON_LEFT)
-			SetOption(OptionList.at(verticalselect - 1));
-		if(WPAD_ButtonsDown(0) == WPAD_BUTTON_UP)
+		PAD_ScanPads();
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_RIGHT) || (PAD_ButtonsDown(0) == PAD_BUTTON_RIGHT))
+			SetOption(OptionList.at(verticalselect - 1), 9);
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_LEFT) || (PAD_ButtonsDown(0) == PAD_BUTTON_LEFT))
+			SetOption(OptionList.at(verticalselect - 1), 1);
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_UP) || (PAD_ButtonsDown(0) == PAD_BUTTON_UP))
 			verticalselect--;
-		if(WPAD_ButtonsDown(0) == WPAD_BUTTON_DOWN)
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_DOWN) || (PAD_ButtonsDown(0) == PAD_BUTTON_DOWN))
 			verticalselect++;
-		if(WPAD_ButtonsDown(0) == WPAD_BUTTON_B)
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B))
 			done = true;
 		if(verticalselect == 0)
 			verticalselect = OptionList.size();
@@ -206,6 +358,7 @@ int main(int argc, char *argv[])
 	VIDEO_ClearFrameBuffer(rmode, xfb, COLOR_BLACK);
 
 	WPAD_Init();
+	PAD_Init();
 
 	bool done = false;
 	bool exit = false;
@@ -233,8 +386,8 @@ int main(int argc, char *argv[])
 	vector<string> DirEntries;
 	vector<string> DirEntryNames;
 	vector<string> DirEntryIDs;
-	u8 position = 1;
-	u8 timeout = 5;
+	u8 position = 0;
+	u8 timeout = 3;
 
 	while(1)
 	{
@@ -271,7 +424,29 @@ int main(int argc, char *argv[])
 				break;
 			}
 		}
+		if(position == 0)
+		{
+			vector<string> tmpIDs = DirEntryIDs;
+			string AutoID(AUTOBOOT_GAME_ID);
+			AutoID.erase(3, 1);
+			for(u8 i = 0; i < tmpIDs.size(); i++)
+			{
+				tmpIDs.at(i).erase(3, 1);
+				if(strcmp(tmpIDs.at(i).c_str(), AutoID.c_str()) == 0)
+				{
+					position = i + 1;
+					break;
+				}
+			}
+		}
+		if(position == 0)
+		{
+			Autoboot = false;
+			MainMenuAutoboot = false;
+		}
 	}
+	else
+		position = 1;
 
 	time_t t;
 	t = time(NULL) + timeout;
@@ -282,14 +457,15 @@ int main(int argc, char *argv[])
 		VIDEO_WaitVSync();
 		printf("\x1b[2J");
 		printf("\x1b[37m");
-		printf("DML Game Booter v0.7 by FIX94 \n \n");
+		printf("DML Game Booter v0.8 by FIX94 \n \n");
 		if(!MainMenuAutoboot)
 			printf("Please select a game with the Wiimote Digital Pad.\n");
 		else
 		{
 			printf("Autoboot requested!\nPress any button to abort... %i\n", int(t-time(NULL)));
 			WPAD_ScanPads();
-			if(WPAD_ButtonsDown(0))
+			PAD_ScanPads();
+			if(WPAD_ButtonsDown(0) || PAD_ButtonsDown(0))
 				MainMenuAutoboot = false;
 			if(time(NULL) >= t)
 				break;
@@ -297,18 +473,19 @@ int main(int argc, char *argv[])
 				continue;
 		}
 		printf("<<<  %s  >>>\n \n", DirEntryNames.at(position - 1).c_str());
-		printf("Press the HOME Button to exit, \nthe A Button to continue \nor the B Button to enter the options.\n");
+		printf("Press the HOME/Start Button to exit, \nthe A Button to continue \nor the B Button to enter the options.\n");
 		/* Waiting until File selected */
 		WPAD_ScanPads();
-		if(WPAD_ButtonsDown(0) == WPAD_BUTTON_RIGHT)
+		PAD_ScanPads();
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_RIGHT) || (PAD_ButtonsDown(0) == PAD_BUTTON_RIGHT))
 			position++;
-		if(WPAD_ButtonsDown(0) == WPAD_BUTTON_LEFT)
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_LEFT) || (PAD_ButtonsDown(0) == PAD_BUTTON_LEFT))
 			position--;
-		if(WPAD_ButtonsDown(0) == WPAD_BUTTON_A)
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_A) || (PAD_ButtonsDown(0) == PAD_BUTTON_A))
 			done = true;
-		if(WPAD_ButtonsDown(0) == WPAD_BUTTON_B)
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B))
 			OptionsMenu();
-		if(WPAD_ButtonsDown(0) == WPAD_BUTTON_HOME)
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_HOME) || (PAD_ButtonsDown(0) == PAD_BUTTON_START))
 		{
 			done = true;
 			exit = true;
@@ -324,7 +501,7 @@ int main(int argc, char *argv[])
 		/* Unmount SD Card */
 		fatUnmount("sd");
 		storage.shutdown();
-		printf("HOME Button pressed, exiting...\n");
+		printf("HOME/Start Button pressed, exiting...\n");
 		WPAD_Shutdown();
 		wait(3);
 		SYS_ResetSystem(SYS_RETURNTOMENU, 0, 0);
@@ -368,21 +545,18 @@ int main(int argc, char *argv[])
 	IOS_Close(di_fd);
 
 	/* Set Video Mode */
-	#ifdef FORCE_VIDEO_MODE
-		#ifdef PAL_VIDEO_MODE
-			GC_SetVideoMode(1);
-		#else
-			GC_SetVideoMode(2);
-		#endif
-	#else
+	if(GC_Video_Mode == 0)
+	{
 		if(DirEntryIDs.at(position - 1).c_str()[3] == 'P')
 			GC_SetVideoMode(1);
 		else
 			GC_SetVideoMode(2);
-	#endif
+	}
+	else
+		GC_SetVideoMode(GC_Video_Mode);
 
 	/* Set GC Lanugage */
-	GC_SetLanguage(0);
+	GC_SetLanguage(GC_Language);
 
 	/* Boot BC */
 	return WII_LaunchTitle(0x100000100LL);
