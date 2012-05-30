@@ -108,41 +108,10 @@ void GC_SetLanguage(u8 lang)
 }
 
 
-void DML_New_SetOptions(const char *GamePath)
+void DML_New_SetOptions(DML_CFG *BooterCFG)
 {
 	DML_CFG *DMLCfg = (DML_CFG*)malloc(sizeof(DML_CFG));
-	memset(DMLCfg, 0, sizeof(DML_CFG));
-
-	DMLCfg->Magicbytes = 0xD1050CF6;
-	DMLCfg->CfgVersion = 0x00000001;
-	//DMLCfg->VideoMode |= DML_VID_FORCE;
-	DMLCfg->VideoMode |= DML_VID_NONE;
-
-	if(GamePath != NULL)
-	{
-		snprintf(DMLCfg->GamePath, sizeof(DMLCfg->GamePath), "/games/%s/game.iso", GamePath);
-		DMLCfg->Config |= DML_CFG_GAME_PATH;
-	}
-
-	#ifdef ACTIVITYLED
-		DMLCfg->Config |= DML_CFG_ACTIVITY_LED;
-	#endif
-
-	#ifdef PADRESET
-		DMLCfg->Config |= DML_CFG_PADHOOK;
-	#endif
-
-	#ifdef CHEATS
-		DMLCfg->Config |= DML_CFG_CHEATS;
-	#endif
-
-	#ifdef NMM
-		DMLCfg->Config |= DML_CFG_NMM;
-	#endif
-
-	#ifdef NODISC
-		DMLCfg->Config |= DML_CFG_NODISC;
-	#endif
+	memcpy(DMLCfg, BooterCFG, sizeof(DML_CFG));
 
 	/*
 	if(DMLvideoMode == 1)

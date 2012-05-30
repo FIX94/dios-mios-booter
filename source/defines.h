@@ -8,7 +8,7 @@
 //#define AUTOBOOT
 
 //Change that to the game folder name in sd:/games (only works if AUTOBOOT is enabled)
-#define Game "GZLP01"
+#define AUTOBOOT_GAME "GZLP01"
 
 //Comment that out for NTSC Video Mode
 #define PAL_VIDEO_MODE
