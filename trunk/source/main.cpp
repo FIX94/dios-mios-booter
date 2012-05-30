@@ -17,9 +17,10 @@
 #include <unistd.h>
 #include <malloc.h>
 
+#include "config.hpp"
+#include "text.hpp"
 #include "gc.h"
 #include "defines.h"
-#include "config.hpp"
 #include "devicemounter.h"
 #include "svnrev.h"
 
@@ -35,15 +36,24 @@ static s32 di_fd = -1;
 
 DML_CFG *BooterCFG;
 Config BooterINI;
+
 bool Autoboot;
 bool OldDML;
 bool DriveReset;
+
 string GC_Language_string;
 vector<string> GC_Language_strings;
 u8 GC_Language;
+
 string GC_Video_string;
 vector<string> GC_Video_strings;
 u8 GC_Video_Mode;
+
+vector<string> DirEntries;
+vector<string> DirEntryNames;
+vector<string> DirEntryIDs;
+
+u8 currentDev;
 
 string GetLanguage()
 {
@@ -105,6 +115,7 @@ void WriteConfig(const char *Domain)
 	BooterINI.setBool(Domain, "Wait_for_Debugger", (BooterCFG->Config & DML_CFG_DEBUGWAIT));
 	BooterINI.setBool(Domain, "Drive_Reset", DriveReset);
 	BooterINI.setBool(Domain, "OldDML", OldDML);
+	BooterINI.setBool("GENERAL", "usb", currentDev);
 	BooterINI.setString(Domain, "Language", GC_Language_string);
 	BooterINI.setString(Domain, "VideoMode", GC_Video_string);
 	BooterINI.save(false);
@@ -212,6 +223,7 @@ void ReadConfig(const char *Domain)
 		GetVideoMode();
 		DriveReset = BooterINI.getBool(Domain, "Drive_Reset", true);
 		OldDML = BooterINI.getBool(Domain, "OldDML", false);
+		currentDev = BooterINI.getBool("GENERAL", "usb", false);
 	}
 	else
 		WriteConfig(Domain);
@@ -222,6 +234,7 @@ void SetDefaultConfig()
 	BooterCFG->Magicbytes = 0xD1050CF6;
 	BooterCFG->CfgVersion = 0x00000001;
 	BooterCFG->VideoMode |= DML_VID_DML_AUTO;
+	currentDev = SD;
 
 	GC_Language_strings.push_back("Wii"); GC_Language_strings.push_back("English");
 	GC_Language_strings.push_back("German"); GC_Language_strings.push_back("French");
@@ -289,6 +302,69 @@ void SetOption(u32 Option, u8 direction)
 		BooterCFG->Config &= ~Option;
 	else
 		BooterCFG->Config |= Option;
+}
+
+void ReadGameDir()
+{
+	DirEntries.clear();
+	DirEntryIDs.clear();
+	DirEntryNames.clear();
+
+	const char *DMLgameDir = fmt("%s:/games/", DeviceName[currentDev]);
+
+	DIR *DMLdir = opendir(DMLgameDir);
+	struct dirent *pent;
+	ifstream infile;
+	char infileBuffer[64];
+	char gamePath[1024];
+
+	while(1)
+	{
+		pent = readdir(DMLdir);
+		if(pent == NULL)
+			break;
+		if (strcmp(pent->d_name, ".") == 0 || strcmp(pent->d_name, "..") == 0)
+			continue;
+		memset(gamePath, 0, sizeof(gamePath));
+		snprintf(gamePath, sizeof(gamePath), "%s%s/game.iso", DMLgameDir, pent->d_name);
+		infile.open(gamePath, ios::binary);
+		if(!infile.is_open())
+		{
+			memset(gamePath, 0, sizeof(gamePath));
+			snprintf(gamePath, sizeof(gamePath), "%s%s/sys/boot.bin", DMLgameDir, pent->d_name);
+			infile.open(gamePath, ios::binary);
+		}
+		if(infile.is_open())
+		{
+			u32 magicword;
+			infile.seekg(0x1c, ios::beg);
+			infile.read((char*)&magicword, sizeof(magicword));
+			if(magicword != 0xc2339f3d)
+			{
+				infile.close();
+				continue;
+			}
+			if(strcasestr(gamePath, "boot.bin") != NULL)
+			{
+				memset(gamePath, 0, sizeof(gamePath));
+				snprintf(gamePath, sizeof(gamePath), "%s/boot.bin", pent->d_name);
+				DirEntries.push_back(string(gamePath));
+			}
+			else
+			{
+				DirEntries.push_back(string(pent->d_name));
+			}
+			infile.seekg(0, ios::beg);
+			memset(infileBuffer, 0, sizeof(infileBuffer));
+			infile.read(infileBuffer, 6);
+			DirEntryIDs.push_back(string(infileBuffer));
+			infile.seekg(0x20, ios::beg);
+			memset(infileBuffer, 0, sizeof(infileBuffer));
+			infile.read(infileBuffer, 64);
+			DirEntryNames.push_back(string(infileBuffer));
+			infile.close();
+		}
+	}
 }
 
 void OptionsMenu()
@@ -402,7 +478,8 @@ int main(int argc, char *argv[])
 	VIDEO_SetBlack(FALSE);
 	VIDEO_Flush();
 	VIDEO_WaitVSync();
-	if(rmode->viTVMode&VI_NON_INTERLACE) VIDEO_WaitVSync();
+	if(rmode->viTVMode&VI_NON_INTERLACE)
+		VIDEO_WaitVSync();
 	CON_InitEx(rmode, 24, 32, rmode->fbWidth - (32), rmode->xfbHeight - (48));
 	VIDEO_ClearFrameBuffer(rmode, xfb, COLOR_BLACK);
 
@@ -427,58 +504,12 @@ int main(int argc, char *argv[])
 	else
 		ReadConfig(AUTOBOOT_GAME_ID);
 
-	const char *DMLgameDir = "sd:/games/";
-
-	DIR *DMLdir = opendir(DMLgameDir);
-	struct dirent *pent;
-	ifstream infile;
-	char infileBuffer[64];
-	char gamePath[1024];
-	vector<string> DirEntries;
-	vector<string> DirEntryNames;
-	vector<string> DirEntryIDs;
 	u8 position = 0;
 	u8 timeout = 3;
 
-	while(1)
-	{
-		pent = readdir(DMLdir);
-		if(pent == NULL)
-			break;
-		if (strcmp(pent->d_name, ".") == 0 || strcmp(pent->d_name, "..") == 0)
-			continue;
-		memset(gamePath, 0, sizeof(gamePath));
-		snprintf(gamePath, sizeof(gamePath), "%s%s/game.iso", DMLgameDir, pent->d_name);
-		infile.open(gamePath, ios::binary);
-		if(!infile.is_open())
-		{
-			memset(gamePath, 0, sizeof(gamePath));
-			snprintf(gamePath, sizeof(gamePath), "%s%s/sys/boot.bin", DMLgameDir, pent->d_name);
-			infile.open(gamePath, ios::binary);
-		}
-		if(infile.is_open())
-		{
-			if(strcasestr(gamePath, "boot.bin") != NULL)
-			{
-				memset(gamePath, 0, sizeof(gamePath));
-				snprintf(gamePath, sizeof(gamePath), "%s/boot.bin", pent->d_name);
-				DirEntries.push_back(string(gamePath));
-			}
-			else
-			{
-				DirEntries.push_back(string(pent->d_name));
-			}
-			infile.seekg(0, ios::beg);
-			memset(infileBuffer, 0, sizeof(infileBuffer));
-			infile.read(infileBuffer, 6);
-			DirEntryIDs.push_back(string(infileBuffer));
-			infile.seekg(0x20, ios::beg);
-			memset(infileBuffer, 0, sizeof(infileBuffer));
-			infile.read(infileBuffer, 64);
-			DirEntryNames.push_back(string(infileBuffer));
-			infile.close();
-		}
-	}
+	if(currentDev)
+		USBDevice_Init();
+	ReadGameDir();
 
 	if(Autoboot)
 	{
@@ -539,7 +570,8 @@ int main(int argc, char *argv[])
 				continue;
 		}
 		printf("<<<  %s  >>>\n \n", DirEntryNames.at(position - 1).c_str());
-		printf("Press the HOME(Start) Button to exit, \nthe A Button to continue \nor the B Button to enter the options.\n");
+		printf("Press the HOME(Start) Button to exit, \nthe A Button to continue \nor the B Button to enter the options. \n \n");
+		printf("Press +(X) to switch the Device. \nCurrent Device: %s\n", DeviceName[currentDev]);
 		/* Waiting until File selected */
 		WPAD_ScanPads();
 		PAD_ScanPads();
@@ -551,6 +583,17 @@ int main(int argc, char *argv[])
 			done = true;
 		if(((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B)))
 			OptionsMenu();
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_PLUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_X))
+		{
+			currentDev = (currentDev == 0) ? 1 : 0;
+			WriteConfig("GENERAL");
+			if(currentDev)
+				USBDevice_Init();
+			else
+				USBDevice_deInit();
+			ReadGameDir();
+			position = 1;
+		}
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_HOME) || (PAD_ButtonsDown(0) == PAD_BUTTON_START))
 		{
 			done = true;
@@ -564,8 +607,8 @@ int main(int argc, char *argv[])
 
 	if(exit)
 	{
-		/* Unmount SD Card */
 		SDCard_deInit();
+		USBDevice_deInit();
 		printf("HOME/Start Button pressed, exiting...\n");
 		WPAD_Shutdown();
 		wait(3);
@@ -598,8 +641,8 @@ int main(int argc, char *argv[])
 	else
 		DML_New_SetOptions(BooterCFG);
 
-	/* Unmount SD Card */
 	SDCard_deInit();
+	USBDevice_deInit();
 
 	if(DriveReset)
 	{
