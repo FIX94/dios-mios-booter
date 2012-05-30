@@ -1,7 +1,7 @@
 
 //============================================================================
 // Name        : main.cpp
-// Version     : v0.9
+// Version     : v1.0
 // Copyright   : 2012 FIX94
 // Description : A small and easy DML Game Booter
 //============================================================================
@@ -38,7 +38,7 @@ DML_CFG *BooterCFG;
 Config BooterINI;
 bool Autoboot;
 bool OldDML;
-bool DMLv1_0;
+bool DriveReset;
 string GC_Language_string;
 vector<string> GC_Language_strings;
 u8 GC_Language;
@@ -104,6 +104,8 @@ void WriteConfig(const char *Domain)
 	BooterINI.setBool(Domain, "No_Disc_Patch", (BooterCFG->Config & DML_CFG_NODISC));
 	BooterINI.setBool(Domain, "Debugger", (BooterCFG->Config & DML_CFG_DEBUGGER));
 	BooterINI.setBool(Domain, "Wait_for_Debugger", (BooterCFG->Config & DML_CFG_DEBUGWAIT));
+	BooterINI.setBool(Domain, "Drive_Reset", DriveReset);
+	BooterINI.setBool(Domain, "OldDML", OldDML);
 	BooterINI.setString(Domain, "Language", GC_Language_string);
 	BooterINI.setString(Domain, "VideoMode", GC_Video_string);
 	BooterINI.save(false);
@@ -209,6 +211,8 @@ void ReadConfig(const char *Domain)
 		GetLanguage();
 		GC_Video_string = BooterINI.getString(Domain, "VideoMode", "Auto");
 		GetVideoMode();
+		DriveReset = BooterINI.getBool(Domain, "Drive_Reset", true);
+		OldDML = BooterINI.getBool(Domain, "OldDML", false);
 	}
 	else
 		WriteConfig(Domain);
@@ -228,6 +232,7 @@ void SetDefaultConfig()
 	GC_Video_strings.push_back("Auto"); GC_Video_strings.push_back("PAL50");
 	GC_Video_strings.push_back("NTSC480i"); GC_Video_strings.push_back("PAL60");
 	GC_Video_strings.push_back("NTSC480p");  GC_Video_strings.push_back("PAL480p");
+	GC_Video_strings.push_back("NTSC480p (patched)");  GC_Video_strings.push_back("PAL480p (patched)");
 }
 
 void wait(u32 s)
@@ -243,6 +248,10 @@ const char *GetOption(u32 Option)
 		return GetLanguage().c_str();
 	else if(Option == 0x56494445) //VIDE
 		return GetVideoMode().c_str();
+	else if(Option == 0x52455345) //RESE
+		return (DriveReset == true) ? "On" : "Off";
+	else if(Option == 0x424F4F54) //BOOT
+		return (OldDML == true) ? "Old" : "New";
 	else if(BooterCFG->Config & Option)
 		return "On";
 	else
@@ -267,6 +276,16 @@ void SetOption(u32 Option, u8 direction)
 			PrevVideoMode();
 		return;
 	}
+	else if(Option == 0x52455345) //RESE
+	{
+		DriveReset = (DriveReset == true) ? false : true;
+		return;
+	}
+	else if(Option == 0x424F4F54) //BOOT
+	{
+		OldDML = (OldDML == true) ? false : true;
+		return;
+	}
 	else if(BooterCFG->Config & Option)
 		BooterCFG->Config &= ~Option;
 	else
@@ -282,22 +301,24 @@ void OptionsMenu()
 
 	bool done = false;
 	u8 verticalselect = 1;
+	u8 Page = 1;
+	u8 Pages = 2;
+	u8 PageSize = 6;
 
 	vector<u32> OptionList;
 	vector<string> OptionNameList;
-	if(!OldDML && !DMLv1_0)
-	{
-		OptionNameList.push_back("Cheats            ");	OptionList.push_back(DML_CFG_CHEATS);
-		OptionNameList.push_back("Debugger          ");	OptionList.push_back(DML_CFG_DEBUGGER);
-		OptionNameList.push_back("Wait for Debugger ");	OptionList.push_back(DML_CFG_DEBUGWAIT);
-		OptionNameList.push_back("NMM               ");	OptionList.push_back(DML_CFG_NMM);
-		OptionNameList.push_back("NMM Debug         ");	OptionList.push_back(DML_CFG_NMM_DEBUG);
-		OptionNameList.push_back("Activity LED      ");	OptionList.push_back(DML_CFG_ACTIVITY_LED);
-		OptionNameList.push_back("Pad Hook          ");	OptionList.push_back(DML_CFG_PADHOOK);
-		OptionNameList.push_back("No Disc Patch     ");	OptionList.push_back(DML_CFG_NODISC);
-	}
+	OptionNameList.push_back("Cheats            ");	OptionList.push_back(DML_CFG_CHEATS);
+	OptionNameList.push_back("Debugger          ");	OptionList.push_back(DML_CFG_DEBUGGER);
+	OptionNameList.push_back("Wait for Debugger ");	OptionList.push_back(DML_CFG_DEBUGWAIT);
+	OptionNameList.push_back("NMM               ");	OptionList.push_back(DML_CFG_NMM);
+	OptionNameList.push_back("NMM Debug         ");	OptionList.push_back(DML_CFG_NMM_DEBUG);
+	OptionNameList.push_back("Activity LED      ");	OptionList.push_back(DML_CFG_ACTIVITY_LED);
+	OptionNameList.push_back("Pad Hook          ");	OptionList.push_back(DML_CFG_PADHOOK);
+	OptionNameList.push_back("No Disc Patch     ");	OptionList.push_back(DML_CFG_NODISC);
 	OptionNameList.push_back("Language          "); OptionList.push_back(0x4C414E47); //LANG 
 	OptionNameList.push_back("Video Mode        "); OptionList.push_back(0x56494445); //VIDE
+	OptionNameList.push_back("Booter Drive Reset"); OptionList.push_back(0x52455345); //RESE
+	OptionNameList.push_back("Boot Method       "); OptionList.push_back(0x424F4F54); //BOOT
 
 	while(!done)
 	{
@@ -305,10 +326,13 @@ void OptionsMenu()
 		VIDEO_WaitVSync();
 		printf("\x1b[2J");
 		printf("\x1b[37m");
-		printf("DML Game Booter v0.9 by FIX94 \n \n");
-		printf("Options\nPress the B Button to return to game selection.");
-		for(u8 i = 0; i < OptionList.size(); i++)
+		printf("DML Game Booter v1.0 Final by FIX94 \n \n");
+		printf("Options\nPress the B Button to return to game selection \nor +/- (X/Y) to switch page.\n");
+		printf(" \nPage %i/%i\n", Page, Pages);
+		for(u8 i = PageSize * (Page - 1); i < OptionList.size(); i++)
 		{
+			if(i >= PageSize * (Page))
+				break;
 			if(verticalselect - 1 == i)
 				printf("\x1b[32m");
 			else
@@ -325,12 +349,32 @@ void OptionsMenu()
 			verticalselect--;
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_DOWN) || (PAD_ButtonsDown(0) == PAD_BUTTON_DOWN))
 			verticalselect++;
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_PLUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_X))
+		{
+			Page--;
+			verticalselect = 1 + PageSize * (Page - 1);
+		}
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_MINUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_Y))
+		{
+			Page++;
+			verticalselect = 1 + PageSize * (Page - 1);
+		}
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B))
 			done = true;
-		if(verticalselect == 0)
-			verticalselect = OptionList.size();
-		if(verticalselect > OptionList.size())
-			verticalselect = 1;
+		if(Page == 0)
+		{
+			Page = Pages;
+			verticalselect = 1 + PageSize * (Page - 1);
+		}
+		if(Page > Pages)
+		{
+			Page = 1;
+			verticalselect = 1 + PageSize * (Page - 1);
+		}
+		if(verticalselect == PageSize * (Page - 1))
+			verticalselect = PageSize * (Page);
+		if(verticalselect > PageSize * (Page))
+			verticalselect = 1 + PageSize * (Page - 1);
 	}
 	/* Set new Options */
 	if(!Autoboot)
@@ -370,16 +414,8 @@ int main(int argc, char *argv[])
 
 	bool done = false;
 	bool exit = false;
-
+	DriveReset = true;
 	OldDML = false;
-	#ifdef OLD_DML
-		OldDML = true;
-	#endif
-
-	DMLv1_0 = false;
-	#ifdef DML_1_0
-		DMLv1_0 = true;
-	#endif
 
 	Autoboot = false;
 	#ifdef AUTOBOOT
@@ -425,7 +461,13 @@ int main(int argc, char *argv[])
 		}
 		if(infile.is_open())
 		{
-			DirEntries.push_back(string(pent->d_name));
+			if(strcasestr(gamePath, "boot.bin") != NULL)
+			{
+				snprintf(gamePath, sizeof(gamePath), "%s/boot.bin", pent->d_name);
+				DirEntries.push_back(string(gamePath));
+			}
+			else
+				DirEntries.push_back(string(pent->d_name));
 			infile.seekg(0, ios::beg);
 			memset(infileBuffer, 0, sizeof(infileBuffer));
 			infile.read(infileBuffer, 6);
@@ -481,9 +523,9 @@ int main(int argc, char *argv[])
 		VIDEO_WaitVSync();
 		printf("\x1b[2J");
 		printf("\x1b[37m");
-		printf("DML Game Booter v0.9 by FIX94 \n \n");
+		printf("DML Game Booter v1.0 Final by FIX94 \n \n");
 		if(!MainMenuAutoboot)
-			printf("Please select a game with the Wiimote Digital Pad.\n");
+			printf("Please select a game with the Wiimote(GameCube Controller) Digital Pad.\n");
 		else
 		{
 			printf("Autoboot requested!\nPress any button to abort... %i\n", int(t-time(NULL)));
@@ -497,7 +539,7 @@ int main(int argc, char *argv[])
 				continue;
 		}
 		printf("<<<  %s  >>>\n \n", DirEntryNames.at(position - 1).c_str());
-		printf("Press the HOME/Start Button to exit, \nthe A Button to continue \nor the B Button to enter the options.\n");
+		printf("Press the HOME(Start) Button to exit, \nthe A Button to continue \nor the B Button to enter the options.\n");
 		/* Waiting until File selected */
 		WPAD_ScanPads();
 		PAD_ScanPads();
@@ -537,11 +579,20 @@ int main(int argc, char *argv[])
 	WPAD_Shutdown();
 	BooterINI.unload();
 
-	snprintf(BooterCFG->GamePath, sizeof(BooterCFG->GamePath), "/games/%s/game.iso", DirEntries.at(position - 1).c_str());
+	if(strcasestr(DirEntries.at(position - 1).c_str(), "boot.bin") != NULL)
+	{
+		DirEntries.at(position - 1).erase(DirEntries.at(position - 1).size() - 8, 8);
+		snprintf(BooterCFG->GamePath, sizeof(BooterCFG->GamePath), "/games/%s", DirEntries.at(position - 1).c_str());
+	}
+	else
+		snprintf(BooterCFG->GamePath, sizeof(BooterCFG->GamePath), "/games/%s/game.iso", DirEntries.at(position - 1).c_str());
 	BooterCFG->Config |= DML_CFG_GAME_PATH;
 
+	if(GC_Video_Mode > 5)
+		BooterCFG->VideoMode |= DML_VID_PROG_PATCH;
+
 	/* Set DML Options */
-	if(OldDML || DMLv1_0)
+	if(OldDML)
 		DML_Old_SetOptions(DirEntries.at(position - 1).c_str());
 	else
 		DML_New_SetOptions(BooterCFG);
@@ -550,7 +601,7 @@ int main(int argc, char *argv[])
 	fatUnmount("sd");
 	storage.shutdown();
 
-	if(!DMLv1_0)
+	if(DriveReset)
 	{
 		/* Open "/dev/di" */
 		di_fd = IOS_Open("/dev/di", 0);
@@ -574,19 +625,9 @@ int main(int argc, char *argv[])
 	if(GC_Video_Mode == 0)
 	{
 		if(DirEntryIDs.at(position - 1).c_str()[3] == 'P')
-		{
-			if(!DMLv1_0)
-				GC_SetVideoMode(1);
-			else
-				GC_SetVideoMode(5);
-		}
+			GC_SetVideoMode(1);
 		else
-		{
-			if(!DMLv1_0)
-				GC_SetVideoMode(2);
-			else
-				GC_SetVideoMode(4);
-		}
+			GC_SetVideoMode(2);
 	}
 	else
 		GC_SetVideoMode(GC_Video_Mode);
