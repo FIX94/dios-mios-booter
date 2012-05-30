@@ -108,7 +108,7 @@ void GC_SetLanguage(u8 lang)
 }
 
 
-void DML_New_SetOptions(char *GamePath)
+void DML_New_SetOptions(const char *GamePath)
 {
 	DML_CFG *DMLCfg = (DML_CFG*)malloc(sizeof(DML_CFG));
 	memset(DMLCfg, 0, sizeof(DML_CFG));
@@ -144,6 +144,8 @@ void DML_New_SetOptions(char *GamePath)
 		DMLCfg->Config |= DML_CFG_NODISC;
 	#endif
 
+	DMLCfg->Config |= DML_CFG_DEBUGGER;
+
 	/*
 	if(DMLvideoMode == 1)
 		DMLCfg->VideoMode |= DML_VID_FORCE_PAL50;
@@ -160,7 +162,7 @@ void DML_New_SetOptions(char *GamePath)
 	free(DMLCfg);
 }
 
-void DML_Old_SetOptions(char *GamePath)
+void DML_Old_SetOptions(const char *GamePath)
 {
 	FILE *f;
 	f = fopen("sd:/games/boot.bin", "wb");

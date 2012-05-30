@@ -5,7 +5,7 @@
 //#define OLD_DML
 
 //Change that to the game folder name in sd:/games
-#define Game "GZLP01"
+//#define Game "GZLP01"
 
 //Comment that out for NTSC Video Mode
 #define PAL_VIDEO_MODE
@@ -15,6 +15,6 @@
 #define ACTIVITYLED
 #define NMM
 #define PADRESET
-#define NODISC
+//#define NODISC
 
 #endif
