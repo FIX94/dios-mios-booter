@@ -1,7 +1,7 @@
 
 //============================================================================
 // Name        : main.cpp
-// Version     : v1.0
+// Version     : v1.01
 // Copyright   : 2012 FIX94
 // Description : A small and easy DML Game Booter
 //============================================================================
@@ -326,7 +326,7 @@ void OptionsMenu()
 		VIDEO_WaitVSync();
 		printf("\x1b[2J");
 		printf("\x1b[37m");
-		printf("DML Game Booter v1.0 Final by FIX94 \n \n");
+		printf("DML Game Booter v1.01 Final by FIX94 \n \n");
 		printf("Options\nPress the B Button to return to game selection \nor +/- (X/Y) to switch page.\n");
 		printf(" \nPage %i/%i\n", Page, Pages);
 		for(u8 i = PageSize * (Page - 1); i < OptionList.size(); i++)
@@ -451,23 +451,26 @@ int main(int argc, char *argv[])
 		if (strcmp(pent->d_name, ".") == 0 || strcmp(pent->d_name, "..") == 0)
 			continue;
 		memset(gamePath, 0, sizeof(gamePath));
-		snprintf(gamePath, sizeof(gamePath), "%s%s/sys/boot.bin", DMLgameDir, pent->d_name);
+		snprintf(gamePath, sizeof(gamePath), "%s%s/game.iso", DMLgameDir, pent->d_name);
 		infile.open(gamePath, ios::binary);
 		if(!infile.is_open())
 		{
 			memset(gamePath, 0, sizeof(gamePath));
-			snprintf(gamePath, sizeof(gamePath), "%s%s/game.iso", DMLgameDir, pent->d_name);
+			snprintf(gamePath, sizeof(gamePath), "%s%s/sys/boot.bin", DMLgameDir, pent->d_name);
 			infile.open(gamePath, ios::binary);
 		}
 		if(infile.is_open())
 		{
 			if(strcasestr(gamePath, "boot.bin") != NULL)
 			{
+				memset(gamePath, 0, sizeof(gamePath));
 				snprintf(gamePath, sizeof(gamePath), "%s/boot.bin", pent->d_name);
 				DirEntries.push_back(string(gamePath));
 			}
 			else
+			{
 				DirEntries.push_back(string(pent->d_name));
+			}
 			infile.seekg(0, ios::beg);
 			memset(infileBuffer, 0, sizeof(infileBuffer));
 			infile.read(infileBuffer, 6);
@@ -523,7 +526,7 @@ int main(int argc, char *argv[])
 		VIDEO_WaitVSync();
 		printf("\x1b[2J");
 		printf("\x1b[37m");
-		printf("DML Game Booter v1.0 Final by FIX94 \n \n");
+		printf("DML Game Booter v1.01 Final by FIX94 \n \n");
 		if(!MainMenuAutoboot)
 			printf("Please select a game with the Wiimote(GameCube Controller) Digital Pad.\n");
 		else
@@ -585,7 +588,9 @@ int main(int argc, char *argv[])
 		snprintf(BooterCFG->GamePath, sizeof(BooterCFG->GamePath), "/games/%s", DirEntries.at(position - 1).c_str());
 	}
 	else
+	{
 		snprintf(BooterCFG->GamePath, sizeof(BooterCFG->GamePath), "/games/%s/game.iso", DirEntries.at(position - 1).c_str());
+	}
 	BooterCFG->Config |= DML_CFG_GAME_PATH;
 
 	if(GC_Video_Mode > 5)
