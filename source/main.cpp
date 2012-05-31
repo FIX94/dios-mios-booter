@@ -409,7 +409,7 @@ void OptionsMenu()
 			if(i >= PageSize * (Page))
 				break;
 			if(verticalselect - 1 == i)
-				printf("\x1b[32m");
+				printf("\x1b[33m");
 			else
 				printf("\x1b[37m");
 			printf(" \n%s           <<< %s >>>\n", OptionNameList.at(i).c_str(), GetOption(OptionList.at(i)));
@@ -505,6 +505,7 @@ int main(int argc, char *argv[])
 		ReadConfig(AUTOBOOT_GAME_ID);
 
 	u8 position = 0;
+	u8 listposition = 1;
 	u8 timeout = 3;
 
 	if(currentDev)
@@ -556,7 +557,7 @@ int main(int argc, char *argv[])
 		printf("\x1b[37m");
 		printf("DML Game Booter SVN r%s by FIX94 \n \n", SVN_REV);
 		if(!MainMenuAutoboot)
-			printf("Please select a game with the Wiimote(GameCube Controller) Digital Pad.\n");
+			printf("Please select a game with the Wiimote(GameCube Controller) Digital Pad.\n \n");
 		else
 		{
 			printf("Autoboot requested!\nPress any button to abort... %i\n", int(t-time(NULL)));
@@ -569,16 +570,50 @@ int main(int argc, char *argv[])
 			if(MainMenuAutoboot)
 				continue;
 		}
-		printf("<<<  %s  >>>\n \n", DirEntryNames.at(position - 1).c_str());
+
+		for(u8 i = 0; i < 76; i++)
+			printf("#");
+
+		for(u8 i = 0; i < 5; i++)
+		{
+			if(listposition - 1 == i)
+				printf("\x1b[33m");
+			else
+				printf("\x1b[37m");
+			if(position - 1 + i < (u8)DirEntryNames.size())
+				printf("%s\n", DirEntryNames.at(position - 1 + i).c_str());
+			else
+				printf("\n");
+		}
+		printf("\x1b[37m");
+
+		for(u8 i = 0; i < 76; i++)
+			printf("#");
+
+		printf("\n \n");
 		printf("Press the HOME(Start) Button to exit, \nthe A Button to continue \nor the B Button to enter the options. \n \n");
-		printf("Press +(X) to switch the Device. \nCurrent Device: %s\n", DeviceName[currentDev]);
+		printf("Press the +(X) Button to switch the Device. \nCurrent Device: %s\n", DeviceName[currentDev]);
 		/* Waiting until File selected */
 		WPAD_ScanPads();
 		PAD_ScanPads();
-		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_RIGHT) || (PAD_ButtonsDown(0) == PAD_BUTTON_RIGHT))
-			position++;
-		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_LEFT) || (PAD_ButtonsDown(0) == PAD_BUTTON_LEFT))
-			position--;
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_UP) || (PAD_ButtonsDown(0) == PAD_BUTTON_UP))
+		{
+			listposition--;
+			if(listposition < 1)
+			{
+				listposition = 1;
+				position--;
+			}
+		}
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_DOWN) || (PAD_ButtonsDown(0) == PAD_BUTTON_DOWN))
+		{
+			listposition++;
+			if(listposition > 5)
+			{
+				listposition = 5;
+				position++;
+			}
+		}
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_A) || (PAD_ButtonsDown(0) == PAD_BUTTON_A))
 			done = true;
 		if(((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B)))
@@ -593,6 +628,7 @@ int main(int argc, char *argv[])
 				USBDevice_deInit();
 			ReadGameDir();
 			position = 1;
+			listposition = 1;
 		}
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_HOME) || (PAD_ButtonsDown(0) == PAD_BUTTON_START))
 		{
@@ -600,9 +636,23 @@ int main(int argc, char *argv[])
 			exit = true;
 		}
 		if(position == 0)
-			position = DirEntries.size();
-		if(position > DirEntries.size())
+		{
+			if(DirEntries.size() > 5)
+			{
+				listposition = 5;
+				position = DirEntries.size() - 4;
+			}
+			else
+			{
+				position = DirEntries.size();
+				listposition = DirEntries.size();
+			}
+		}
+		if(position + (listposition - 1) > (u8)DirEntries.size())
+		{
+			listposition = 1;
 			position = 1;
+		}
 	}
 
 	if(exit)
@@ -616,7 +666,10 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 	else
+	{
+		position += (listposition - 1);
 		printf(" \nSelected: %s\nBooting game...\n", DirEntryNames.at(position - 1).c_str());
+	}
 
 	WPAD_Shutdown();
 	BooterINI.unload();
