@@ -579,8 +579,7 @@ int main(int argc, char *argv[])
 		}
 
 		printf("Press the HOME(Start) Button to exit, \nthe A Button to continue \nor the B Button to enter the options. \n \n");
-		printf("Press the +(X) Button to switch the Device. \nCurrent Device: %s\n", DeviceName[currentDev]);
-		printf("\n \n");
+		printf("Press the +(X) Button to switch the Device. \nCurrent Device: %s\n \n", DeviceName[currentDev]);
 
 		printf(listlimits);
 		for(u8 i = 0; i < listsize; i++)
