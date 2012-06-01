@@ -34,6 +34,8 @@ static u32 inbuf[8]  ATTRIBUTE_ALIGN(32);
 static u32 outbuf[8] ATTRIBUTE_ALIGN(32);
 static s32 di_fd = -1;
 
+static u32 listsize = 12;
+
 DML_CFG *BooterCFG;
 Config BooterINI;
 
@@ -491,6 +493,11 @@ int main(int argc, char *argv[])
 	DriveReset = true;
 	OldDML = false;
 
+	char listlimits[77];
+	for(u8 i = 0; i < 76; i++)
+		listlimits[i] = '#';
+	listlimits[76] = '\0';
+
 	Autoboot = false;
 	#ifdef AUTOBOOT
 		Autoboot = true;
@@ -571,10 +578,12 @@ int main(int argc, char *argv[])
 				continue;
 		}
 
-		for(u8 i = 0; i < 76; i++)
-			printf("#");
+		printf("Press the HOME(Start) Button to exit, \nthe A Button to continue \nor the B Button to enter the options. \n \n");
+		printf("Press the +(X) Button to switch the Device. \nCurrent Device: %s\n", DeviceName[currentDev]);
+		printf("\n \n");
 
-		for(u8 i = 0; i < 5; i++)
+		printf(listlimits);
+		for(u8 i = 0; i < listsize; i++)
 		{
 			if(listposition - 1 == i)
 				printf("\x1b[33m");
@@ -586,13 +595,8 @@ int main(int argc, char *argv[])
 				printf("\n");
 		}
 		printf("\x1b[37m");
+		printf(listlimits);
 
-		for(u8 i = 0; i < 76; i++)
-			printf("#");
-
-		printf("\n \n");
-		printf("Press the HOME(Start) Button to exit, \nthe A Button to continue \nor the B Button to enter the options. \n \n");
-		printf("Press the +(X) Button to switch the Device. \nCurrent Device: %s\n", DeviceName[currentDev]);
 		/* Waiting until File selected */
 		WPAD_ScanPads();
 		PAD_ScanPads();
@@ -608,9 +612,9 @@ int main(int argc, char *argv[])
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_DOWN) || (PAD_ButtonsDown(0) == PAD_BUTTON_DOWN))
 		{
 			listposition++;
-			if(listposition > 5)
+			if(listposition > listsize)
 			{
-				listposition = 5;
+				listposition = listsize;
 				position++;
 			}
 		}
@@ -637,15 +641,15 @@ int main(int argc, char *argv[])
 		}
 		if(position == 0)
 		{
-			if(DirEntries.size() > 5)
+			if(DirEntries.size() > listsize)
 			{
-				listposition = 5;
-				position = DirEntries.size() - 4;
+				listposition = listsize;
+				position = DirEntries.size() - (listposition - 1);
 			}
 			else
 			{
-				position = DirEntries.size();
 				listposition = DirEntries.size();
+				position = 1;
 			}
 		}
 		if(position + (listposition - 1) > (u8)DirEntries.size())
