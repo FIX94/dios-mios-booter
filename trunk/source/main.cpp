@@ -22,6 +22,7 @@
 #include "gc.h"
 #include "defines.h"
 #include "devicemounter.h"
+#include "sys.h"
 #include "svnrev.h"
 
 using namespace std;
@@ -42,6 +43,9 @@ Config BooterINI;
 bool Autoboot;
 bool OldDML;
 bool DriveReset;
+
+extern bool reset;
+extern bool shutdown;
 
 string GC_Language_string;
 vector<string> GC_Language_strings;
@@ -320,6 +324,8 @@ void ReadGameDir()
 	char infileBuffer[64];
 	char gamePath[1024];
 
+	char title[77];
+
 	while(1)
 	{
 		pent = readdir(DMLdir);
@@ -346,24 +352,30 @@ void ReadGameDir()
 				infile.close();
 				continue;
 			}
+
+			infile.seekg(0x20, ios::beg);
+			memset(infileBuffer, 0, sizeof(infileBuffer));
+			infile.read(infileBuffer, 64);
+			memset(title, 0, sizeof(title));
+			strcat(title, infileBuffer);
 			if(strcasestr(gamePath, "boot.bin") != NULL)
 			{
 				memset(gamePath, 0, sizeof(gamePath));
 				snprintf(gamePath, sizeof(gamePath), "%s/boot.bin", pent->d_name);
 				DirEntries.push_back(string(gamePath));
+				strcat(title, " (FST)");
 			}
 			else
 			{
 				DirEntries.push_back(string(pent->d_name));
+				strcat(title, " (ISO)");
 			}
+			DirEntryNames.push_back(string(title));
+
 			infile.seekg(0, ios::beg);
 			memset(infileBuffer, 0, sizeof(infileBuffer));
 			infile.read(infileBuffer, 6);
 			DirEntryIDs.push_back(string(infileBuffer));
-			infile.seekg(0x20, ios::beg);
-			memset(infileBuffer, 0, sizeof(infileBuffer));
-			infile.read(infileBuffer, 64);
-			DirEntryNames.push_back(string(infileBuffer));
 			infile.close();
 		}
 	}
@@ -384,6 +396,11 @@ void OptionsMenu()
 
 	vector<u32> OptionList;
 	vector<string> OptionNameList;
+	OptionNameList.push_back("Boot Method       "); OptionList.push_back(0x424F4F54); //BOOT
+	OptionNameList.push_back("Language          "); OptionList.push_back(0x4C414E47); //LANG 
+	OptionNameList.push_back("Video Mode        "); OptionList.push_back(0x56494445); //VIDE
+	OptionNameList.push_back("Booter Drive Reset"); OptionList.push_back(0x52455345); //RESE
+
 	OptionNameList.push_back("Cheats            ");	OptionList.push_back(DML_CFG_CHEATS);
 	OptionNameList.push_back("Debugger          ");	OptionList.push_back(DML_CFG_DEBUGGER);
 	OptionNameList.push_back("Wait for Debugger ");	OptionList.push_back(DML_CFG_DEBUGWAIT);
@@ -392,10 +409,6 @@ void OptionsMenu()
 	OptionNameList.push_back("Activity LED      ");	OptionList.push_back(DML_CFG_ACTIVITY_LED);
 	OptionNameList.push_back("Pad Hook          ");	OptionList.push_back(DML_CFG_PADHOOK);
 	OptionNameList.push_back("No Disc Patch     ");	OptionList.push_back(DML_CFG_NODISC);
-	OptionNameList.push_back("Language          "); OptionList.push_back(0x4C414E47); //LANG 
-	OptionNameList.push_back("Video Mode        "); OptionList.push_back(0x56494445); //VIDE
-	OptionNameList.push_back("Booter Drive Reset"); OptionList.push_back(0x52455345); //RESE
-	OptionNameList.push_back("Boot Method       "); OptionList.push_back(0x424F4F54); //BOOT
 
 	while(!done)
 	{
@@ -405,10 +418,13 @@ void OptionsMenu()
 		printf("\x1b[37m");
 		printf("DML Game Booter SVN r%s by FIX94 \n \n", SVN_REV);
 		printf("Options\nPress the B Button to return to game selection \nor +/- (X/Y) to switch page.\n");
-		printf(" \nPage %i/%i\n", Page, Pages);
+		if(!OldDML)
+			printf(" \nPage %i/%i\n", Page, Pages);
+		else
+			printf(" \n \n");
 		for(u8 i = PageSize * (Page - 1); i < OptionList.size(); i++)
 		{
-			if(i >= PageSize * (Page))
+			if(i >= PageSize * (Page) || (i == 4 && OldDML))
 				break;
 			if(verticalselect - 1 == i)
 				printf("\x1b[33m");
@@ -426,12 +442,12 @@ void OptionsMenu()
 			verticalselect--;
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_DOWN) || (PAD_ButtonsDown(0) == PAD_BUTTON_DOWN))
 			verticalselect++;
-		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_PLUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_X))
+		if(!OldDML && ((WPAD_ButtonsDown(0) == WPAD_BUTTON_PLUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_X)))
 		{
 			Page--;
 			verticalselect = 1 + PageSize * (Page - 1);
 		}
-		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_MINUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_Y))
+		if(!OldDML && ((WPAD_ButtonsDown(0) == WPAD_BUTTON_MINUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_Y)))
 		{
 			Page++;
 			verticalselect = 1 + PageSize * (Page - 1);
@@ -448,9 +464,13 @@ void OptionsMenu()
 			Page = 1;
 			verticalselect = 1 + PageSize * (Page - 1);
 		}
-		if(verticalselect == PageSize * (Page - 1))
+		if(OldDML && verticalselect == 0)
+			verticalselect = 4;
+		else if(OldDML && verticalselect > 4)
+			verticalselect = 1;
+		else if(verticalselect == PageSize * (Page - 1))
 			verticalselect = PageSize * (Page);
-		if(verticalselect > PageSize * (Page))
+		else if(verticalselect > PageSize * (Page))
 			verticalselect = 1 + PageSize * (Page - 1);
 	}
 	/* Set new Options */
@@ -460,9 +480,10 @@ void OptionsMenu()
 		WriteConfig(AUTOBOOT_GAME_ID);
 	OptionList.clear();
 	OptionNameList.clear();
+	VIDEO_WaitVSync();
 }
 
-int main(int argc, char *argv[]) 
+int main() 
 {
 	BooterCFG = (DML_CFG*)malloc(sizeof(DML_CFG));
 	memset(BooterCFG, 0, sizeof(DML_CFG));
@@ -485,8 +506,8 @@ int main(int argc, char *argv[])
 	CON_InitEx(rmode, 24, 32, rmode->fbWidth - (32), rmode->xfbHeight - (48));
 	VIDEO_ClearFrameBuffer(rmode, xfb, COLOR_BLACK);
 
-	WPAD_Init();
-	PAD_Init();
+	Sys_Init();
+	Open_Inputs();
 
 	bool done = false;
 	bool exit = false;
@@ -556,10 +577,9 @@ int main(int argc, char *argv[])
 	time_t t;
 	t = time(NULL) + timeout;
 
-	while(!done)
+	while(!done && !shutdown && !reset)
 	{
 		/* Clear console */
-		VIDEO_WaitVSync();
 		printf("\x1b[2J");
 		printf("\x1b[37m");
 		printf("DML Game Booter SVN r%s by FIX94 \n \n", SVN_REV);
@@ -575,26 +595,14 @@ int main(int argc, char *argv[])
 			if(time(NULL) >= t)
 				break;
 			if(MainMenuAutoboot)
+			{
+				VIDEO_WaitVSync();
 				continue;
+			}
 		}
 
 		printf("Press the HOME(Start) Button to exit, \nthe A Button to continue \nor the B Button to enter the options. \n \n");
 		printf("Press the +(X) Button to switch the Device. \nCurrent Device: %s\n \n", DeviceName[currentDev]);
-
-		printf(listlimits);
-		for(u8 i = 0; i < listsize; i++)
-		{
-			if(listposition - 1 == i)
-				printf("\x1b[33m");
-			else
-				printf("\x1b[37m");
-			if(position - 1 + i < (u8)DirEntryNames.size())
-				printf("%s\n", DirEntryNames.at(position - 1 + i).c_str());
-			else
-				printf("\n");
-		}
-		printf("\x1b[37m");
-		printf(listlimits);
 
 		/* Waiting until File selected */
 		WPAD_ScanPads();
@@ -620,7 +628,10 @@ int main(int argc, char *argv[])
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_A) || (PAD_ButtonsDown(0) == PAD_BUTTON_A))
 			done = true;
 		if(((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B)))
+		{
 			OptionsMenu();
+			continue;
+		}
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_PLUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_X))
 		{
 			currentDev = (currentDev == 0) ? 1 : 0;
@@ -656,26 +667,53 @@ int main(int argc, char *argv[])
 			listposition = 1;
 			position = 1;
 		}
+		
+		if(!done)
+		{
+			printf(listlimits);
+			for(u8 i = 0; i < listsize; i++)
+			{
+				if(listposition - 1 == i)
+					printf("\x1b[33m");
+				else
+					printf("\x1b[37m");
+				if(position - 1 + i < (u8)DirEntryNames.size())
+					printf("%s\n", DirEntryNames.at(position - 1 + i).c_str());
+				else
+					printf("\n");
+			}
+			printf("\x1b[37m");
+			printf(listlimits);
+		}
+		VIDEO_WaitVSync();
 	}
 
-	if(exit)
-	{
+	BooterINI.unload();
+	if(!OldDML)
 		SDCard_deInit();
-		USBDevice_deInit();
-		printf("HOME/Start Button pressed, exiting...\n");
-		WPAD_Shutdown();
-		wait(3);
+	USBDevice_deInit();
+	Close_Inputs();
+
+	if(exit || shutdown || reset)
+	{
+		if(OldDML)
+			SDCard_deInit();
+		if(shutdown)
+		{
+			SYS_ResetSystem(SYS_POWEROFF, 0, 0);
+			return 0;
+		}
+		else if(exit)
+		{
+			printf("HOME/Start Button pressed, exiting...\n");
+			wait(3);
+		}
 		SYS_ResetSystem(SYS_RETURNTOMENU, 0, 0);
 		return 0;
 	}
-	else
-	{
-		position += (listposition - 1);
-		printf(" \nSelected: %s\nBooting game...\n", DirEntryNames.at(position - 1).c_str());
-	}
 
-	WPAD_Shutdown();
-	BooterINI.unload();
+	position += (listposition - 1);
+	printf(" \nSelected: %s\nBooting game...\n", DirEntryNames.at(position - 1).c_str());
 
 	if(strcasestr(DirEntries.at(position - 1).c_str(), "boot.bin") != NULL)
 	{
@@ -693,12 +731,10 @@ int main(int argc, char *argv[])
 
 	/* Set DML Options */
 	if(OldDML)
-		DML_Old_SetOptions(DirEntries.at(position - 1).c_str());
-	else
-		DML_New_SetOptions(BooterCFG);
-
-	SDCard_deInit();
-	USBDevice_deInit();
+	{
+		DML_Old_SetOptions(DirEntryIDs.at(position - 1).c_str());
+		SDCard_deInit();
+	}
 
 	if(DriveReset)
 	{
@@ -734,6 +770,12 @@ int main(int argc, char *argv[])
 	/* Set GC Lanugage */
 	GC_SetLanguage(GC_Language);
 
+	/* Write our options into memory */
+	if(!OldDML)
+		DML_New_WriteOptions(BooterCFG);
+	free(BooterCFG);
+
 	/* Boot BC */
+	WII_Initialize();
 	return WII_LaunchTitle(0x100000100LL);
 }

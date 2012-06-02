@@ -13,7 +13,6 @@ void GC_SetVideoMode(u8 videomode)
 {
 	syssram *sram;
 	sram = __SYS_LockSram();
-	void *m_frameBuf;
 	static GXRModeObj *rmode;
 	int memflag = 0;
 
@@ -54,22 +53,19 @@ void GC_SetVideoMode(u8 videomode)
 	__SYS_UnlockSram(1); // 1 -> write changes
 	while(!__SYS_SyncSram());
 
-	/* Set video mode to PAL or NTSC */
-	*(vu32*)0x800000CC = memflag;
+	/* Set video mode register */
+	*(vu32 *)0x800000CC = memflag;
 	DCFlushRange((void *)(0x800000CC), 4);
-	ICInvalidateRange((void *)(0x800000CC), 4);
 
-	VIDEO_Init();
-	VIDEO_Configure(rmode);
-	m_frameBuf = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
+	/* Set video mode */
+	if (rmode != 0)
+		VIDEO_Configure(rmode);
 
-	VIDEO_ClearFrameBuffer(rmode, m_frameBuf, COLOR_BLACK);
-	VIDEO_SetNextFramebuffer(m_frameBuf);
-
+	/* Setup video  */
 	VIDEO_SetBlack(TRUE);
 	VIDEO_Flush();
 	VIDEO_WaitVSync();
-	if(rmode->viTVMode&VI_NON_INTERLACE) 
+	if(rmode->viTVMode & VI_NON_INTERLACE)
 		VIDEO_WaitVSync();
 }
 
@@ -107,43 +103,30 @@ void GC_SetLanguage(u8 lang)
 	while(!__SYS_SyncSram());
 }
 
-
-void DML_New_SetOptions(DML_CFG *BooterCFG)
+void DML_New_WriteOptions(DML_CFG *DMLCfg)
 {
-	DML_CFG *DMLCfg = (DML_CFG*)malloc(sizeof(DML_CFG));
-	memcpy(DMLCfg, BooterCFG, sizeof(DML_CFG));
-
-	/*
-	if(DMLvideoMode == 1)
-		DMLCfg->VideoMode |= DML_VID_FORCE_PAL50;
-	else if(DMLvideoMode == 2)
-		DMLCfg->VideoMode |= DML_VID_FORCE_NTSC;
-	else if(DMLvideoMode == 3)
-		DMLCfg->VideoMode |= DML_VID_FORCE_PAL60;
-	else
-		DMLCfg->VideoMode |= DML_VID_FORCE_PROG;
-	*/
+	if(DMLCfg == NULL)
+		return;
 
 	//Write options into memory
-	memcpy((void *)0xC0001700, DMLCfg, sizeof(DML_CFG));
-	
-	//DML v1.2+
-	memcpy((void *)0xC1200000, DMLCfg, sizeof(DML_CFG));
+	memcpy((void *)0x80001700, DMLCfg, sizeof(DML_CFG));
+	DCFlushRange((void *)(0x80001700), sizeof(DML_CFG));
 
-	free(DMLCfg);
+	//DML v1.2+
+	memcpy((void *)0x81200000, DMLCfg, sizeof(DML_CFG));
+	DCFlushRange((void *)(0x81200000), sizeof(DML_CFG));
 }
 
-void DML_Old_SetOptions(const char *GamePath)
+void DML_Old_SetOptions(const char *GameID)
 {
 	FILE *f;
 	f = fopen("sd:/games/boot.bin", "wb");
-	fwrite(GamePath, 1, strlen(GamePath) + 1, f);
+	fwrite(GameID, 1, 6, f);
 	fclose(f);
 
 	//Tell DML to boot the game from sd card
 	*(vu32*)0x80001800 = 0xB002D105;
 	DCFlushRange((void *)(0x80001800), 4);
-	ICInvalidateRange((void *)(0x80001800), 4);
 
 	*(vu32*)0xCC003024 |= 7;
 }

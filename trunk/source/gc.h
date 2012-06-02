@@ -1,3 +1,4 @@
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -52,8 +53,8 @@ enum dmlvideomode
 
 void GC_SetVideoMode(u8 videomode);
 void GC_SetLanguage(u8 lang);
-void DML_New_SetOptions(DML_CFG *BooterCFG);
-void DML_Old_SetOptions(const char *GamePath);
+void DML_New_WriteOptions(DML_CFG *DMLCfg);
+void DML_Old_SetOptions(const char *GameID);
 #endif //GC_H_
 
 #ifdef __cplusplus
