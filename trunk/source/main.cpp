@@ -46,6 +46,8 @@ bool DriveReset;
 
 extern bool reset;
 extern bool shutdown;
+bool reset_wiimote = false;
+bool done = false;
 
 string GC_Language_string;
 vector<string> GC_Language_strings;
@@ -388,7 +390,6 @@ void OptionsMenu()
 	else
 		ReadConfig(AUTOBOOT_GAME_ID);
 
-	bool done = false;
 	u8 verticalselect = 1;
 	u8 Page = 1;
 	u8 Pages = 2;
@@ -410,7 +411,7 @@ void OptionsMenu()
 	OptionNameList.push_back("Pad Hook          ");	OptionList.push_back(DML_CFG_PADHOOK);
 	OptionNameList.push_back("No Disc Patch     ");	OptionList.push_back(DML_CFG_NODISC);
 
-	while(!done)
+	while(!done && !shutdown && !reset)
 	{
 		/* Clear console */
 		VIDEO_WaitVSync();
@@ -454,6 +455,11 @@ void OptionsMenu()
 		}
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B))
 			done = true;
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_HOME) || (PAD_ButtonsDown(0) == PAD_BUTTON_START))
+		{
+			done = true;
+			reset_wiimote = true;
+		}
 		if(Page == 0)
 		{
 			Page = Pages;
@@ -509,8 +515,6 @@ int main()
 	Sys_Init();
 	Open_Inputs();
 
-	bool done = false;
-	bool exit = false;
 	DriveReset = true;
 	OldDML = false;
 
@@ -647,7 +651,7 @@ int main()
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_HOME) || (PAD_ButtonsDown(0) == PAD_BUTTON_START))
 		{
 			done = true;
-			exit = true;
+			reset_wiimote = true;
 		}
 		if(position == 0)
 		{
@@ -694,7 +698,7 @@ int main()
 	USBDevice_deInit();
 	Close_Inputs();
 
-	if(exit || shutdown || reset)
+	if(reset_wiimote || shutdown || reset)
 	{
 		if(OldDML)
 			SDCard_deInit();
@@ -703,7 +707,7 @@ int main()
 			SYS_ResetSystem(SYS_POWEROFF, 0, 0);
 			return 0;
 		}
-		else if(exit)
+		else if(reset_wiimote)
 		{
 			printf("HOME/Start Button pressed, exiting...\n");
 			wait(3);
