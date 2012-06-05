@@ -454,7 +454,7 @@ void OptionsMenu()
 			verticalselect = 1 + PageSize * (Page - 1);
 		}
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B))
-			done = true;
+			break;
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_HOME) || (PAD_ButtonsDown(0) == PAD_BUTTON_START))
 		{
 			done = true;
