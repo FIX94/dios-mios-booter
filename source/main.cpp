@@ -24,6 +24,7 @@
 #include "devicemounter.h"
 #include "sys.h"
 #include "svnrev.h"
+#include "fileOps.h"
 
 using namespace std;
 
@@ -413,6 +414,8 @@ void OptionsMenu()
 
 	while(!done && !shutdown && !reset)
 	{
+		usleep(100);
+
 		/* Clear console */
 		VIDEO_WaitVSync();
 		printf("\x1b[2J");
@@ -583,6 +586,8 @@ int main()
 
 	while(!done && !shutdown && !reset)
 	{
+		usleep(100);
+
 		/* Clear console */
 		printf("\x1b[2J");
 		printf("\x1b[37m");
@@ -606,7 +611,7 @@ int main()
 		}
 
 		printf("Press the HOME(Start) Button to exit, \nthe A Button to continue \nor the B Button to enter the options. \n \n");
-		printf("Press the +(X) Button to switch the Device. \nCurrent Device: %s\n \n", DeviceName[currentDev]);
+		printf("Press the -(Y) Button to copy the selected game from USB to SD \nor the +(X) Button to switch the Device. \nCurrent Device: %s\n \n", DeviceName[currentDev]);
 
 		/* Waiting until File selected */
 		WPAD_ScanPads();
@@ -631,10 +636,58 @@ int main()
 		}
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_A) || (PAD_ButtonsDown(0) == PAD_BUTTON_A))
 			done = true;
-		if(((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B)))
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B))
 		{
 			OptionsMenu();
 			continue;
+		}
+		if(((WPAD_ButtonsDown(0) == WPAD_BUTTON_MINUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_Y)) && currentDev == 1)
+		{
+			printf("WARNING: Copying a game from USB to SD can take a few minutes and cannot be cancelled. \nPress the A Button to continue or the B Button to return to \nthe game selection.\n");
+			bool stop = true;
+			while(!done && !shutdown && !reset)
+			{
+				usleep(100);
+				WPAD_ScanPads();
+				PAD_ScanPads();
+				if((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B))
+					break;
+				if((WPAD_ButtonsDown(0) == WPAD_BUTTON_A) || (PAD_ButtonsDown(0) == PAD_BUTTON_A))
+				{
+					stop = false;
+					break;
+				}
+			}
+			if(!stop)
+			{
+				u8 tmppos = position;
+				position += (listposition - 1);
+				string gameID = DirEntryIDs.at(position - 1);
+				string gameName = DirEntryNames.at(position - 1);
+				string gamePath = DirEntries.at(position - 1);
+				currentDev = 0;
+				ReadGameDir();
+				bool gameOnSD = false;
+				for(u8 i = 1; i < DirEntryIDs.size(); i++)
+				{
+					if(strncasecmp(DirEntryIDs.at(i - 1).c_str(), gameID.c_str(), 6) == 0)
+						gameOnSD = true;
+				}
+				if(!gameOnSD)
+				{
+					char source[1024];
+					char target[1024];
+					if(strcasestr(gamePath.c_str(), "boot.bin") != NULL)
+						gamePath.erase(gamePath.size() - 8, 8);
+					snprintf(source, sizeof(source), "usb:/games/%s", gamePath.c_str());
+					snprintf(target, sizeof(target), "sd:/games/%s", gamePath.c_str());
+					if(fsop_GetFreeSpaceKb((char*)"sd:/") >= fsop_GetFolderKb(source))
+						fsop_CopyFolder(source, target, gameName.c_str(), gameID.c_str());
+				}
+				position = tmppos;
+				currentDev = 1;
+				ReadGameDir();
+			}
 		}
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_PLUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_X))
 		{
