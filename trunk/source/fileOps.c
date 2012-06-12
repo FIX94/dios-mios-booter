@@ -328,6 +328,38 @@ bool fsop_CopyFolder(char *source, char *target, const char *gamename, const cha
 	return doCopyFolder(source, target);
 }
 
+void fsop_deleteFolder(char *source)
+{
+	DIR *pdir;
+	struct dirent *pent;
+	char newSource[300];
+
+	pdir = opendir(source);
+
+	while((pent = readdir(pdir)) != NULL) 
+	{
+		// Skip it
+		if(strcmp(pent->d_name, ".") == 0 || strcmp(pent->d_name, "..") == 0)
+			continue;
+
+		snprintf(newSource, sizeof(newSource), "%s/%s", source, pent->d_name);
+
+		// If it is a folder... recurse...
+		if(fsop_DirExist(newSource))
+			fsop_deleteFolder(newSource);
+		else	// It is a file !
+			fsop_deleteFile(newSource);
+	}
+	closedir(pdir);
+	unlink(source);
+}
+
+void fsop_deleteFile(char *source)
+{
+	if(fsop_FileExist(source))
+		remove(source);
+}
+
 void refreshProgressBar()
 {
 	/* Clear console */

@@ -15,8 +15,10 @@ bool fsop_FileExist(const char *fn);
 bool fsop_DirExist(char *path);
 bool fsop_MakeFolder(char *path);
 bool fsop_CopyFile(char *source, char *target);
-
 bool fsop_CopyFolder(char *source, char *target, const char *gamename, const char *gameID);
+void fsop_deleteFile(char *source);
+void fsop_deleteFolder(char *source);
+
 void refreshProgressBar();
 
 #endif

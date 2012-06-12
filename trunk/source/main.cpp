@@ -30,6 +30,7 @@ using namespace std;
 
 #define IOCTL_DI_STOPMOTOR	0xE3
 #define IOCTL_DI_RESET		0x8A
+#define	HW_PPCSPEED			((vu32*)0xCD800018)
 
 /* Variables */
 static u32 inbuf[8]  ATTRIBUTE_ALIGN(32);
@@ -44,6 +45,7 @@ Config BooterINI;
 bool Autoboot;
 bool OldDML;
 bool DriveReset;
+bool NTSCJ_Patch;
 
 extern bool reset;
 extern bool shutdown;
@@ -124,6 +126,7 @@ void WriteConfig(const char *Domain)
 	BooterINI.setBool(Domain, "Wait_for_Debugger", (BooterCFG->Config & DML_CFG_DEBUGWAIT));
 	BooterINI.setBool(Domain, "Drive_Reset", DriveReset);
 	BooterINI.setBool(Domain, "OldDML", OldDML);
+	BooterINI.setBool(Domain, "NTSCJ_Patch", NTSCJ_Patch);
 	BooterINI.setBool("GENERAL", "usb", currentDev);
 	BooterINI.setString(Domain, "Language", GC_Language_string);
 	BooterINI.setString(Domain, "VideoMode", GC_Video_string);
@@ -232,6 +235,7 @@ void ReadConfig(const char *Domain)
 		GetVideoMode();
 		DriveReset = BooterINI.getBool(Domain, "Drive_Reset", true);
 		OldDML = BooterINI.getBool(Domain, "OldDML", false);
+		NTSCJ_Patch = BooterINI.getBool(Domain, "NTSCJ_Patch", false);
 		currentDev = BooterINI.getBool("GENERAL", "usb", false);
 	}
 	else
@@ -273,6 +277,8 @@ const char *GetOption(u32 Option)
 		return (DriveReset == true) ? "On" : "Off";
 	else if(Option == 0x424F4F54) //BOOT
 		return (OldDML == true) ? "Old" : "New";
+	else if(Option == 0x4A415041) //JAPA
+		return (NTSCJ_Patch == true) ? "Yes" : "No";
 	else if(BooterCFG->Config & Option)
 		return "On";
 	else
@@ -307,6 +313,11 @@ void SetOption(u32 Option, u8 direction)
 		OldDML = (OldDML == true) ? false : true;
 		return;
 	}
+	else if(Option == 0x4A415041) //JAPA
+	{
+		NTSCJ_Patch = (NTSCJ_Patch == true) ? false : true;
+		return;
+	}
 	else if(BooterCFG->Config & Option)
 		BooterCFG->Config &= ~Option;
 	else
@@ -318,6 +329,9 @@ void ReadGameDir()
 	DirEntries.clear();
 	DirEntryIDs.clear();
 	DirEntryNames.clear();
+	DirEntries.push_back(string("dvd:/"));
+	DirEntryIDs.push_back(string("GCDISC"));
+	DirEntryNames.push_back(string("Boot Disc in DVD Drive"));
 
 	const char *DMLgameDir = fmt("%s:/games/", DeviceName[currentDev]);
 
@@ -393,8 +407,9 @@ void OptionsMenu()
 
 	u8 verticalselect = 1;
 	u8 Page = 1;
-	u8 Pages = 2;
+	u8 Pages = 3;
 	u8 PageSize = 6;
+	u8 GeneralOptions = 5;
 
 	vector<u32> OptionList;
 	vector<string> OptionNameList;
@@ -402,6 +417,7 @@ void OptionsMenu()
 	OptionNameList.push_back("Language          "); OptionList.push_back(0x4C414E47); //LANG 
 	OptionNameList.push_back("Video Mode        "); OptionList.push_back(0x56494445); //VIDE
 	OptionNameList.push_back("Booter Drive Reset"); OptionList.push_back(0x52455345); //RESE
+	OptionNameList.push_back("NTSC-J Patch      "); OptionList.push_back(0x4A415041); //JAPA
 
 	OptionNameList.push_back("Cheats            ");	OptionList.push_back(DML_CFG_CHEATS);
 	OptionNameList.push_back("Debugger          ");	OptionList.push_back(DML_CFG_DEBUGGER);
@@ -421,14 +437,14 @@ void OptionsMenu()
 		printf("\x1b[2J");
 		printf("\x1b[37m");
 		printf("DML Game Booter SVN r%s by FIX94 \n \n", SVN_REV);
-		printf("Options\nPress the B Button to return to game selection \nor +/- (X/Y) to switch page.\n");
+		printf("Options\nPress the B Button to return to game selection \nor -/+ (L/R) to switch page.\n");
 		if(!OldDML)
 			printf(" \nPage %i/%i\n", Page, Pages);
 		else
 			printf(" \n \n");
 		for(u8 i = PageSize * (Page - 1); i < OptionList.size(); i++)
 		{
-			if(i >= PageSize * (Page) || (i == 4 && OldDML))
+			if(i >= PageSize * (Page) || (i == GeneralOptions && OldDML))
 				break;
 			if(verticalselect - 1 == i)
 				printf("\x1b[33m");
@@ -446,14 +462,14 @@ void OptionsMenu()
 			verticalselect--;
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_DOWN) || (PAD_ButtonsDown(0) == PAD_BUTTON_DOWN))
 			verticalselect++;
-		if(!OldDML && ((WPAD_ButtonsDown(0) == WPAD_BUTTON_PLUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_X)))
-		{
-			Page--;
-			verticalselect = 1 + PageSize * (Page - 1);
-		}
-		if(!OldDML && ((WPAD_ButtonsDown(0) == WPAD_BUTTON_MINUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_Y)))
+		if(!OldDML && ((WPAD_ButtonsDown(0) == WPAD_BUTTON_PLUS) || (PAD_ButtonsDown(0) == PAD_TRIGGER_R)))
 		{
 			Page++;
+			verticalselect = 1 + PageSize * (Page - 1);
+		}
+		if(!OldDML && ((WPAD_ButtonsDown(0) == WPAD_BUTTON_MINUS) || (PAD_ButtonsDown(0) == PAD_TRIGGER_L)))
+		{
+			Page--;
 			verticalselect = 1 + PageSize * (Page - 1);
 		}
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B))
@@ -474,8 +490,8 @@ void OptionsMenu()
 			verticalselect = 1 + PageSize * (Page - 1);
 		}
 		if(OldDML && verticalselect == 0)
-			verticalselect = 4;
-		else if(OldDML && verticalselect > 4)
+			verticalselect = GeneralOptions;
+		else if(OldDML && verticalselect > GeneralOptions)
 			verticalselect = 1;
 		else if(verticalselect == PageSize * (Page - 1))
 			verticalselect = PageSize * (Page);
@@ -490,6 +506,25 @@ void OptionsMenu()
 	OptionList.clear();
 	OptionNameList.clear();
 	VIDEO_WaitVSync();
+}
+
+bool AbortOperation()
+{
+	bool stop = true;
+	while(!done && !shutdown && !reset)
+	{
+		usleep(100);
+		WPAD_ScanPads();
+		PAD_ScanPads();
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B))
+			break;
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_A) || (PAD_ButtonsDown(0) == PAD_BUTTON_A))
+		{
+			stop = false;
+			break;
+		}
+	}
+	return stop;
 }
 
 int main() 
@@ -520,6 +555,7 @@ int main()
 
 	DriveReset = true;
 	OldDML = false;
+	NTSCJ_Patch = false;
 
 	char listlimits[77];
 	for(u8 i = 0; i < 76; i++)
@@ -592,9 +628,7 @@ int main()
 		printf("\x1b[2J");
 		printf("\x1b[37m");
 		printf("DML Game Booter SVN r%s by FIX94 \n \n", SVN_REV);
-		if(!MainMenuAutoboot)
-			printf("Please select a game with the Wiimote(GameCube Controller) Digital Pad.\n \n");
-		else
+		if(MainMenuAutoboot)
 		{
 			printf("Autoboot requested!\nPress any button to abort... %i\n", int(t-time(NULL)));
 			WPAD_ScanPads();
@@ -611,7 +645,7 @@ int main()
 		}
 
 		printf("Press the HOME(Start) Button to exit, \nthe A Button to continue \nor the B Button to enter the options. \n \n");
-		printf("Press the -(Y) Button to copy the selected game from USB to SD \nor the +(X) Button to switch the Device. \nCurrent Device: %s\n \n", DeviceName[currentDev]);
+		printf("Press the -(L) Button to copy the selected game from USB to SD, \nthe 1(X) Button to delete a game \nor the +(R) Button to switch the Device. \nCurrent Device: %s\n \n", DeviceName[currentDev]);
 
 		/* Waiting until File selected */
 		WPAD_ScanPads();
@@ -641,24 +675,10 @@ int main()
 			OptionsMenu();
 			continue;
 		}
-		if(((WPAD_ButtonsDown(0) == WPAD_BUTTON_MINUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_Y)) && currentDev == 1)
+		if(((WPAD_ButtonsDown(0) == WPAD_BUTTON_MINUS) || (PAD_ButtonsDown(0) == PAD_TRIGGER_L)) && currentDev == 1)
 		{
 			printf("WARNING: Copying a game from USB to SD can take a few minutes and cannot be cancelled. \nPress the A Button to continue or the B Button to return to \nthe game selection.\n");
-			bool stop = true;
-			while(!done && !shutdown && !reset)
-			{
-				usleep(100);
-				WPAD_ScanPads();
-				PAD_ScanPads();
-				if((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B))
-					break;
-				if((WPAD_ButtonsDown(0) == WPAD_BUTTON_A) || (PAD_ButtonsDown(0) == PAD_BUTTON_A))
-				{
-					stop = false;
-					break;
-				}
-			}
-			if(!stop)
+			if(!AbortOperation())
 			{
 				u8 tmppos = position;
 				position += (listposition - 1);
@@ -678,7 +698,7 @@ int main()
 					char source[1024];
 					char target[1024];
 					if(strcasestr(gamePath.c_str(), "boot.bin") != NULL)
-						gamePath.erase(gamePath.size() - 8, 8);
+						gamePath.erase(gamePath.size() - 9, 9);
 					snprintf(source, sizeof(source), "usb:/games/%s", gamePath.c_str());
 					snprintf(target, sizeof(target), "sd:/games/%s", gamePath.c_str());
 					if(fsop_GetFreeSpaceKb((char*)"sd:/") >= fsop_GetFolderKb(source))
@@ -688,8 +708,29 @@ int main()
 				currentDev = 1;
 				ReadGameDir();
 			}
+			continue;
 		}
-		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_PLUS) || (PAD_ButtonsDown(0) == PAD_BUTTON_X))
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_1) || (PAD_ButtonsDown(0) == PAD_BUTTON_X))
+		{
+			printf("WARNING: The game will be deleted forever and cant be restored. \nPress the A Button to continue or the B Button to return to \nthe game selection.\n");
+			if(!AbortOperation())
+			{
+				u8 tmppos = position;
+				position += (listposition - 1);
+				string gamePath = DirEntries.at(position - 1);
+				char source[1024];
+				if(strcasestr(gamePath.c_str(), "boot.bin") != NULL)
+					gamePath.erase(gamePath.size() - 9, 9);
+				snprintf(source, sizeof(source), "%s:/games/%s", DeviceName[currentDev], gamePath.c_str());
+				printf("Deleting folder: %s\n", source);
+				VIDEO_WaitVSync();
+				fsop_deleteFolder(source);
+				position = tmppos;
+				ReadGameDir();
+			}
+			continue;
+		}
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_PLUS) || (PAD_ButtonsDown(0) == PAD_TRIGGER_R))
 		{
 			currentDev = (currentDev == 0) ? 1 : 0;
 			WriteConfig("GENERAL");
@@ -772,16 +813,19 @@ int main()
 	position += (listposition - 1);
 	printf(" \nSelected: %s\nBooting game...\n", DirEntryNames.at(position - 1).c_str());
 
-	if(strcasestr(DirEntries.at(position - 1).c_str(), "boot.bin") != NULL)
+	if(position > 1)
 	{
-		DirEntries.at(position - 1).erase(DirEntries.at(position - 1).size() - 8, 8);
-		snprintf(BooterCFG->GamePath, sizeof(BooterCFG->GamePath), "/games/%s", DirEntries.at(position - 1).c_str());
+		if(strcasestr(DirEntries.at(position - 1).c_str(), "boot.bin") != NULL)
+		{
+			DirEntries.at(position - 1).erase(DirEntries.at(position - 1).size() - 8, 8);
+			snprintf(BooterCFG->GamePath, sizeof(BooterCFG->GamePath), "/games/%s", DirEntries.at(position - 1).c_str());
+		}
+		else
+			snprintf(BooterCFG->GamePath, sizeof(BooterCFG->GamePath), "/games/%s/game.iso", DirEntries.at(position - 1).c_str());
+		BooterCFG->Config |= DML_CFG_GAME_PATH;
 	}
 	else
-	{
-		snprintf(BooterCFG->GamePath, sizeof(BooterCFG->GamePath), "/games/%s/game.iso", DirEntries.at(position - 1).c_str());
-	}
-	BooterCFG->Config |= DML_CFG_GAME_PATH;
+		BooterCFG->Config |= DML_CFG_BOOT_DISC;
 
 	if(GC_Video_Mode > 5)
 		BooterCFG->VideoMode |= DML_VID_PROG_PATCH;
@@ -789,7 +833,8 @@ int main()
 	/* Set DML Options */
 	if(OldDML)
 	{
-		DML_Old_SetOptions(DirEntryIDs.at(position - 1).c_str());
+		if(position > 1)
+			DML_Old_SetOptions(DirEntryIDs.at(position - 1).c_str());
 		SDCard_deInit();
 	}
 
@@ -831,6 +876,10 @@ int main()
 	if(!OldDML)
 		DML_New_WriteOptions(BooterCFG);
 	free(BooterCFG);
+
+	/* NTSC-J Patch */
+	if(NTSCJ_Patch)
+		*HW_PPCSPEED = 0x0002A9E0;
 
 	/* Boot BC */
 	WII_Initialize();
