@@ -9,7 +9,7 @@ syssram* __SYS_LockSram();
 u32 __SYS_UnlockSram(u32 write);
 u32 __SYS_SyncSram(void);
 
-void GC_SetVideoMode(u8 videomode)
+void GC_SetVideoMode(u8 videomode, DML_CFG *BooterCFG)
 {
 	syssram *sram;
 	sram = __SYS_LockSram();
@@ -34,18 +34,29 @@ void GC_SetVideoMode(u8 videomode)
 	}
 
 	if(videomode == 1)
+	{
+		BooterCFG->VideoMode |= DML_VID_FORCE_PAL50;
 		rmode = &TVPal528IntDf;
+	}
 	else if(videomode == 2)
+	{
+		BooterCFG->VideoMode |= DML_VID_FORCE_NTSC;
 		rmode = &TVNtsc480IntDf;
+	}
 	else if(videomode == 3)
 	{
+		BooterCFG->VideoMode |= DML_VID_FORCE_PAL60;
 		rmode = &TVEurgb60Hz480IntDf;
 		memflag = 5;
 	}
 	else if(videomode == 4 ||videomode == 6)
+	{
+		BooterCFG->VideoMode |= DML_VID_FORCE_PROG;
 		rmode = &TVNtsc480Prog;
+	}
 	else if(videomode == 5 || videomode == 7)
 	{
+		BooterCFG->VideoMode |= DML_VID_FORCE_PROG;
 		rmode = &TVEurgb60Hz480Prog;
 		memflag = 5;
 	}
