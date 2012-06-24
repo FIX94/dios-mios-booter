@@ -136,7 +136,8 @@ void WriteConfig(const char *Domain)
 	BooterINI.setBool("GENERAL", "usb", currentDev);
 	BooterINI.setString(Domain, "Language", GC_Language_string);
 	BooterINI.setString(Domain, "VideoMode", GC_Video_string);
-	BooterINI.save(false);
+	if(SDCard_Inited() || USBDevice_Inited())
+		BooterINI.save(false);
 }
 
 void NextLanguage()
@@ -661,9 +662,6 @@ int main()
 	Sys_Init();
 	Open_Inputs();
 
-	/* Mount SD Card */
-	SDCard_Init();
-
 	DriveReset = true;
 	OldDML = false;
 	NTSCJ_Patch = false;
@@ -680,7 +678,11 @@ int main()
 
 	bool MainMenuAutoboot = Autoboot;
 
-	BooterINI.load("sd:/games/dml_booter.ini");
+	if(SDCard_Init() > 0)
+		BooterINI.load("sd:/dios-mios-booter.ini");
+	else if(USBDevice_Init() > 0)
+		BooterINI.load("usb:/dios-mios-booter.ini");
+
 	if(!Autoboot)
 		ReadConfig("GENERAL");
 	else
@@ -690,7 +692,7 @@ int main()
 	listposition = 1;
 	u8 timeout = 3;
 
-	if(currentDev)
+	if(currentDev && !USBDevice_Inited())
 		USBDevice_Init();
 	ReadGameDir();
 
@@ -796,10 +798,8 @@ int main()
 		{
 			currentDev = (currentDev == 0) ? 1 : 0;
 			WriteConfig("GENERAL");
-			if(currentDev)
+			if(currentDev && !USBDevice_Inited())
 				USBDevice_Init();
-			else
-				USBDevice_deInit();
 			ReadGameDir();
 			position = 1;
 			listposition = 1;
@@ -847,15 +847,12 @@ int main()
 	}
 
 	BooterINI.unload();
-	if(!OldDML)
-		SDCard_deInit();
-	USBDevice_deInit();
 	Close_Inputs();
 
 	if(reset_wiimote || shutdown || reset)
 	{
-		if(OldDML)
-			SDCard_deInit();
+		SDCard_deInit();
+		USBDevice_deInit();
 		if(shutdown)
 		{
 			SYS_ResetSystem(SYS_POWEROFF, 0, 0);
@@ -891,12 +888,11 @@ int main()
 		BooterCFG->VideoMode |= DML_VID_PROG_PATCH;
 
 	/* Set DML Options */
-	if(OldDML)
-	{
-		if(position > 1)
-			DML_Old_SetOptions(DirEntryIDs.at(position - 1).c_str());
-		SDCard_deInit();
-	}
+	if(OldDML && position > 1)
+		DML_Old_SetOptions(DirEntryIDs.at(position - 1).c_str());
+
+	SDCard_deInit();
+	USBDevice_deInit();
 
 	if(DriveReset)
 	{

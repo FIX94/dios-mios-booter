@@ -20,8 +20,10 @@ static const char DeviceName[MAXDEVICES][6] =
 };
 
 int USBDevice_Init();
+bool USBDevice_Inited();
 void USBDevice_deInit();
 int SDCard_Init();
+bool SDCard_Inited();
 void SDCard_deInit();
 
 #ifdef __cplusplus
