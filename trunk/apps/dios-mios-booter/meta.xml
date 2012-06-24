@@ -2,8 +2,8 @@
 <app version="SVN">
 	<name>DIOS-MIOS Booter</name>
 	<coder>FIX94</coder>
-	<version>r22</version>
-	<release_date>20120612000000</release_date>
+	<version>r23</version>
+	<release_date>20120624000000</release_date>
 	<short_description>GameCube Game Booter</short_description>
 	<long_description>DIOS-MIOS Booter is a text-only GameCube Booter which can boot games from SD via DIOS-MIOS Lite and also from USB via DIOS-MIOS, also a options menu is available to control all needed game settings, controls are displayed on screen directly.</long_description>
 	<no_ios_reload/>

@@ -77,7 +77,8 @@ endif
 
 export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
 					$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) \
-					$(sFILES:.s=.o) $(SFILES:.S=.o)
+					$(sFILES:.s=.o) $(SFILES:.S=.o) \
+					$(CURDIR)/data/binary/magic_patcher.o
 
 #---------------------------------------------------------------------------------
 # build a list of include paths

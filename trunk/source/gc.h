@@ -53,8 +53,8 @@ enum dmlvideomode
 	DML_VID_PROG_PATCH	= (1<<4),
 };
 
-void GC_SetVideoMode(u8 videomode);
 void GC_SetLanguage(u8 lang);
+void GC_SetVideoMode(u8 videomode, DML_CFG *DMLCfg);
 void DML_New_WriteOptions(DML_CFG *DMLCfg);
 void DML_Old_SetOptions(const char *GameID);
 #endif //GC_H_

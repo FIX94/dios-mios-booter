@@ -360,14 +360,17 @@ void fsop_deleteFile(char *source)
 		remove(source);
 }
 
+extern char MIOS_Info[256];
+
 void refreshProgressBar()
 {
 	/* Clear console */
 	VIDEO_WaitVSync();
 	printf("\x1b[2J");
 	printf("\x1b[37m");
+	printf("DML Game Booter SVN r%s by FIX94, Game Copier by stfour\n", SVN_REV);
+	printf(MIOS_Info);
 
-	printf("DML Game Booter SVN r%s by FIX94, Game Copier by stfour \n \n", SVN_REV);
 	printf("Copying game: %s...\n \n", fullGameName);
 	printf("Progress: %3.2f%% \n \n", (float)FolderProgressBytes / (float)folderSize * 100);
 	printf("Source Folder: %s\n", MainSource);

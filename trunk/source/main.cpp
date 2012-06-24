@@ -3,7 +3,7 @@
 // Name        : main.cpp
 // Version     : WIP SVN
 // Copyright   : 2012 FIX94
-// Description : A small and easy DML Game Booter
+// Description : A small and easy DIOS-MIOS (Lite) Game Booter
 //============================================================================
 
 #include <gccore.h>
@@ -16,6 +16,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <malloc.h>
+#include <ogc/isfs.h>
 
 #include "config.hpp"
 #include "text.hpp"
@@ -25,6 +26,7 @@
 #include "sys.h"
 #include "svnrev.h"
 #include "fileOps.h"
+#include "fs.h"
 
 using namespace std;
 
@@ -52,6 +54,7 @@ extern bool shutdown;
 bool reset_wiimote = false;
 bool done = false;
 
+char MIOS_Info[256];
 string GC_Language_string;
 vector<string> GC_Language_strings;
 u8 GC_Language;
@@ -59,6 +62,9 @@ u8 GC_Language;
 string GC_Video_string;
 vector<string> GC_Video_strings;
 u8 GC_Video_Mode;
+
+u8 position;
+u8 listposition;
 
 vector<string> DirEntries;
 vector<string> DirEntryNames;
@@ -246,7 +252,7 @@ void SetDefaultConfig()
 {
 	BooterCFG->Magicbytes = 0xD1050CF6;
 	BooterCFG->CfgVersion = 0x00000001;
-	BooterCFG->VideoMode |= DML_VID_DML_AUTO;
+	BooterCFG->VideoMode |= DML_VID_FORCE;
 	currentDev = SD;
 
 	GC_Language_strings.push_back("Wii"); GC_Language_strings.push_back("English");
@@ -398,6 +404,16 @@ void ReadGameDir()
 	}
 }
 
+void RefreshDisplay()
+{
+	VIDEO_WaitVSync();
+	usleep(100);
+	printf("\x1b[2J");
+	printf("\x1b[37m");
+	printf("DIOS-MIOS Booter SVN r%s by FIX94\n", SVN_REV);
+	printf(MIOS_Info);
+}
+
 void OptionsMenu()
 {
 	if(!Autoboot)
@@ -430,13 +446,7 @@ void OptionsMenu()
 
 	while(!done && !shutdown && !reset)
 	{
-		usleep(100);
-
-		/* Clear console */
-		VIDEO_WaitVSync();
-		printf("\x1b[2J");
-		printf("\x1b[37m");
-		printf("DML Game Booter SVN r%s by FIX94 \n \n", SVN_REV);
+		RefreshDisplay();
 		printf("Options\nPress the B Button to return to game selection \nor -/+ (L/R) to switch page.\n");
 		if(!OldDML)
 			printf(" \nPage %i/%i\n", Page, Pages);
@@ -527,14 +537,112 @@ bool AbortOperation()
 	return stop;
 }
 
+u8 MIOSisDML()
+{
+	u32 size = 0;
+	u8 *appfile = ISFS_GetFile((u8*)"/title/00000001/00000101/content/0000000c.app", &size, 0);
+	if(appfile)
+	{
+		for(u32 i = 0; i < size; ++i) 
+		{
+			if((*(vu32*)(appfile+i)) == 0x44494F53 && (*(vu32*)(appfile+i+5)) == 0x4D494F53) //DIOS MIOS
+			{
+				if(*(vu32*)(appfile+i+10) == 0x4C697465) //Lite
+				{
+					strncpy(MIOS_Info, fmt("DIOS-MIOS Lite %s\n", (char*)(appfile+i+20)), sizeof(MIOS_Info));
+					free(appfile);
+					return 2;
+				}
+				strncpy(MIOS_Info, fmt("DIOS-MIOS %s\n", (char*)(appfile+i+20)), sizeof(MIOS_Info));
+				free(appfile);
+				return 1;
+			}
+		}
+		free(appfile);
+	}
+	strncpy(MIOS_Info, "DIOS-MIOS (Lite) not found!\n \n", sizeof(MIOS_Info));
+	return 0;
+}
+
+void GameOptions()
+{
+	u8 tmppos = position;
+	position += (listposition - 1);
+	string gameID = DirEntryIDs.at(position - 1);
+	string gameName = DirEntryNames.at(position - 1);
+	string gamePath = DirEntries.at(position - 1);
+
+	while(!done && !shutdown && !reset)
+	{
+		RefreshDisplay();
+		printf("Game Operations\nPress the B Button to return to game selection.\nCurrent Game: %s\n \n", gameName.c_str());
+		printf("Press the -(L) Button to to delete the game%s\n", currentDev == 1 ? "\nor the +(R) Button to copy the game from USB to SD." : ".\n");
+		WPAD_ScanPads();
+		PAD_ScanPads();
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_B) || (PAD_ButtonsDown(0) == PAD_BUTTON_B))
+			break;
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_MINUS) || (PAD_ButtonsDown(0) == PAD_TRIGGER_L))
+		{
+			printf("WARNING: The game will be deleted forever and cant be restored. \nPress the A Button to continue or the B Button to abort.\n");
+			if(!AbortOperation())
+			{
+				char source[1024];
+				if(strcasestr(gamePath.c_str(), "boot.bin") != NULL)
+					gamePath.erase(gamePath.size() - 9, 9);
+				snprintf(source, sizeof(source), "%s:/games/%s", DeviceName[currentDev], gamePath.c_str());
+				printf("Deleting folder: %s\n", source);
+				VIDEO_WaitVSync();
+				fsop_deleteFolder(source);
+				listposition = 1;
+				tmppos = 1;
+				ReadGameDir();
+			}
+			continue;
+		}
+		if(((WPAD_ButtonsDown(0) == WPAD_BUTTON_PLUS) || (PAD_ButtonsDown(0) == PAD_TRIGGER_R)) && currentDev == 1)
+		{
+			printf("WARNING: Copying a game from USB to SD can take a few minutes and cannot be cancelled. \nPress the A Button to continue or the B Button to abort.\n");
+			if(!AbortOperation())
+			{
+				currentDev = 0;
+				ReadGameDir();
+				bool gameOnSD = false;
+				for(u8 i = 1; i < DirEntryIDs.size(); i++)
+				{
+					if(strncasecmp(DirEntryIDs.at(i - 1).c_str(), gameID.c_str(), 6) == 0)
+						gameOnSD = true;
+				}
+				if(!gameOnSD)
+				{
+					char source[1024];
+					char target[1024];
+					if(strcasestr(gamePath.c_str(), "boot.bin") != NULL)
+						gamePath.erase(gamePath.size() - 9, 9);
+					snprintf(source, sizeof(source), "usb:/games/%s", gamePath.c_str());
+					snprintf(target, sizeof(target), "sd:/games/%s", gamePath.c_str());
+					if(fsop_GetFreeSpaceKb((char*)"sd:/") >= fsop_GetFolderKb(source))
+						fsop_CopyFolder(source, target, gameName.c_str(), gameID.c_str());
+				}
+				position = tmppos;
+				currentDev = 1;
+				ReadGameDir();
+			}
+			continue;
+		}
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_HOME) || (PAD_ButtonsDown(0) == PAD_BUTTON_START))
+		{
+			done = true;
+			reset_wiimote = true;
+		}
+	}
+	position = tmppos;
+}
+
 int main() 
 {
 	BooterCFG = (DML_CFG*)malloc(sizeof(DML_CFG));
 	memset(BooterCFG, 0, sizeof(DML_CFG));
 	SetDefaultConfig();
-
-	/* Mount SD Card */
-	SDCard_Init();
 
 	/* Init Video */
 	VIDEO_Init();
@@ -552,6 +660,9 @@ int main()
 
 	Sys_Init();
 	Open_Inputs();
+
+	/* Mount SD Card */
+	SDCard_Init();
 
 	DriveReset = true;
 	OldDML = false;
@@ -575,8 +686,8 @@ int main()
 	else
 		ReadConfig(AUTOBOOT_GAME_ID);
 
-	u8 position = 0;
-	u8 listposition = 1;
+	position = 0;
+	listposition = 1;
 	u8 timeout = 3;
 
 	if(currentDev)
@@ -620,14 +731,16 @@ int main()
 	time_t t;
 	t = time(NULL) + timeout;
 
+	/* Check MIOS */
+	MagicPatches(1); //It's a kind of magic :P
+	ISFS_Initialize();
+	MIOSisDML();
+	ISFS_Deinitialize();
+	MagicPatches(0);
+
 	while(!done && !shutdown && !reset)
 	{
-		usleep(100);
-
-		/* Clear console */
-		printf("\x1b[2J");
-		printf("\x1b[37m");
-		printf("DML Game Booter SVN r%s by FIX94 \n \n", SVN_REV);
+		RefreshDisplay();
 		if(MainMenuAutoboot)
 		{
 			printf("Autoboot requested!\nPress any button to abort... %i\n", int(t-time(NULL)));
@@ -644,10 +757,9 @@ int main()
 			}
 		}
 
-		printf("Press the HOME(Start) Button to exit, \nthe A Button to continue \nor the B Button to enter the options. \n \n");
-		printf("Press the -(L) Button to copy the selected game from USB to SD, \nthe 1(X) Button to delete a game \nor the +(R) Button to switch the Device. \nCurrent Device: %s\n \n", DeviceName[currentDev]);
+		printf("Press the HOME(Start) Button to exit, \nthe A Button to boot the selected Game \nor the B Button to enter the Options. \n \n");
+		printf("Press the -(L) Button to to switch the Device \nor the 1(X) Button to enter the Game Operations.\nCurrent Device: %s\n \n", DeviceName[currentDev]);
 
-		/* Waiting until File selected */
 		WPAD_ScanPads();
 		PAD_ScanPads();
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_UP) || (PAD_ButtonsDown(0) == PAD_BUTTON_UP))
@@ -675,62 +787,12 @@ int main()
 			OptionsMenu();
 			continue;
 		}
-		if(((WPAD_ButtonsDown(0) == WPAD_BUTTON_MINUS) || (PAD_ButtonsDown(0) == PAD_TRIGGER_L)) && currentDev == 1)
-		{
-			printf("WARNING: Copying a game from USB to SD can take a few minutes and cannot be cancelled. \nPress the A Button to continue or the B Button to return to \nthe game selection.\n");
-			if(!AbortOperation())
-			{
-				u8 tmppos = position;
-				position += (listposition - 1);
-				string gameID = DirEntryIDs.at(position - 1);
-				string gameName = DirEntryNames.at(position - 1);
-				string gamePath = DirEntries.at(position - 1);
-				currentDev = 0;
-				ReadGameDir();
-				bool gameOnSD = false;
-				for(u8 i = 1; i < DirEntryIDs.size(); i++)
-				{
-					if(strncasecmp(DirEntryIDs.at(i - 1).c_str(), gameID.c_str(), 6) == 0)
-						gameOnSD = true;
-				}
-				if(!gameOnSD)
-				{
-					char source[1024];
-					char target[1024];
-					if(strcasestr(gamePath.c_str(), "boot.bin") != NULL)
-						gamePath.erase(gamePath.size() - 9, 9);
-					snprintf(source, sizeof(source), "usb:/games/%s", gamePath.c_str());
-					snprintf(target, sizeof(target), "sd:/games/%s", gamePath.c_str());
-					if(fsop_GetFreeSpaceKb((char*)"sd:/") >= fsop_GetFolderKb(source))
-						fsop_CopyFolder(source, target, gameName.c_str(), gameID.c_str());
-				}
-				position = tmppos;
-				currentDev = 1;
-				ReadGameDir();
-			}
-			continue;
-		}
 		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_1) || (PAD_ButtonsDown(0) == PAD_BUTTON_X))
 		{
-			printf("WARNING: The game will be deleted forever and cant be restored. \nPress the A Button to continue or the B Button to return to \nthe game selection.\n");
-			if(!AbortOperation())
-			{
-				u8 tmppos = position;
-				position += (listposition - 1);
-				string gamePath = DirEntries.at(position - 1);
-				char source[1024];
-				if(strcasestr(gamePath.c_str(), "boot.bin") != NULL)
-					gamePath.erase(gamePath.size() - 9, 9);
-				snprintf(source, sizeof(source), "%s:/games/%s", DeviceName[currentDev], gamePath.c_str());
-				printf("Deleting folder: %s\n", source);
-				VIDEO_WaitVSync();
-				fsop_deleteFolder(source);
-				position = tmppos;
-				ReadGameDir();
-			}
+			GameOptions();
 			continue;
 		}
-		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_PLUS) || (PAD_ButtonsDown(0) == PAD_TRIGGER_R))
+		if((WPAD_ButtonsDown(0) == WPAD_BUTTON_MINUS) || (PAD_ButtonsDown(0) == PAD_TRIGGER_L))
 		{
 			currentDev = (currentDev == 0) ? 1 : 0;
 			WriteConfig("GENERAL");
@@ -765,7 +827,6 @@ int main()
 			listposition = 1;
 			position = 1;
 		}
-		
 		if(!done)
 		{
 			printf(listlimits);
@@ -783,7 +844,6 @@ int main()
 			printf("\x1b[37m");
 			printf(listlimits);
 		}
-		VIDEO_WaitVSync();
 	}
 
 	BooterINI.unload();
@@ -862,12 +922,12 @@ int main()
 	if(GC_Video_Mode == 0)
 	{
 		if(DirEntryIDs.at(position - 1).c_str()[3] == 'P')
-			GC_SetVideoMode(1);
+			GC_SetVideoMode(1, BooterCFG);
 		else
-			GC_SetVideoMode(2);
+			GC_SetVideoMode(2, BooterCFG);
 	}
 	else
-		GC_SetVideoMode(GC_Video_Mode);
+		GC_SetVideoMode(GC_Video_Mode, BooterCFG);
 
 	/* Set GC Lanugage */
 	GC_SetLanguage(GC_Language);
