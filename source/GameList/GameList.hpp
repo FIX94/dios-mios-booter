@@ -15,25 +15,34 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  ****************************************************************************/
-#ifdef __cplusplus
-extern "C"
+#ifndef GAMELIST_HPP_
+#define GAMELIST_HPP_
+
+#include <gccore.h>
+#include <iostream>
+#include <vector>
+#include <string>
+
+using namespace std;
+
+struct DirEnt
 {
-#endif
+	string Path;
+	string Name;
+	string GameID;
+};
 
-#ifndef SYS_H_
-#define SYS_H_
+class GameList
+{
+public:
+	void AddEntry(string path, string gameid, string name);
+	void ClearEntries();
+	const char *GetEntryPath(u32 position);
+	const char *GetEntryName(u32 position);
+	const char *GetEntryID(u32 position);
+	u32 GetEntrySize();
+private:
+	vector<DirEnt> DirEntries;
+};
 
-s32 MagicPatches(s32);
-
-void Sys_Init(void);
-bool Sys_Exit(void);
-
-void Open_Inputs(void);
-void Close_Inputs(void);
-void Input_Reset(void);
-
-#endif //SYS_H_
-
-#ifdef __cplusplus
-}
 #endif

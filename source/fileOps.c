@@ -4,21 +4,22 @@ fsop contains coomprensive set of function for file and folder handling
 
 en exposed s_fsop fsop structure can be used by callback to update operation status
 
-////////////////////////////////////////////////////////////////////////////////////////*/
+(c) 2012 stfour
 
+////////////////////////////////////////////////////////////////////////////////////////*/
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <math.h>
 #include <ogcsys.h>
 #include <ogc/lwp_watchdog.h>
-#include <malloc.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/statvfs.h>
 
 #include "svnrev.h"
 #include "fileOps.h"
+#include "Memory/mem2.hpp"
 
 #define SET(a, b) a = b; DCFlushRange(&a, sizeof(a));
 
@@ -34,6 +35,7 @@ static u64 folderSize = 0;
 char fullGameName[80];
 char *MainSource;
 char *MainTarget;
+const char *MIOS_Info;
 u8 CopyProgress;
 u64 FolderProgressBytes;
 
@@ -209,7 +211,7 @@ bool fsop_CopyFile(char *source, char *target)
 	u8 *threadStack = NULL;
 	lwp_t hthread = LWP_THREAD_NULL;
 
-	buff = malloc(block * 2);
+	buff = MEM2_alloc(block * 2);
 	if(buff == NULL)
 		return false;
 
@@ -219,7 +221,7 @@ bool fsop_CopyFile(char *source, char *target)
 	blockInfo[1] = 0;
 	u32 bytes = 0;
 
-	threadStack = malloc(32768);
+	threadStack = MEM2_alloc(32768);
 	if(threadStack == NULL)
 		return false;
 
@@ -260,14 +262,14 @@ bool fsop_CopyFile(char *source, char *target)
 		usleep(5);
 
 	LWP_JoinThread(hthread, NULL);
-	free(threadStack);
+	MEM2_free(threadStack);
 
 	stopThread = 1;
 	DCFlushRange(&stopThread, sizeof(stopThread));
 
 	fclose(fs);
 	fclose(ft);
-	free(buff);
+	MEM2_free(buff);
 
 	if(err) 
 	{
@@ -315,13 +317,14 @@ static bool doCopyFolder(char *source, char *target)
 	return ret;
 }
 
-bool fsop_CopyFolder(char *source, char *target, const char *gamename, const char *gameID)
+bool fsop_CopyFolder(char *source, char *target, const char *gamename, const char *gameID, const char *MIOS_inf)
 {
 	snprintf(fullGameName, sizeof(fullGameName), "[%s] %s", gameID, gamename);
 	CopyProgress = 0;
 	FolderProgressBytes = 0;
 	MainSource = source;
 	MainTarget = target;
+	MIOS_Info = MIOS_inf;
 	folderSize = fsop_GetFolderBytes(source);
 	refreshProgressBar();
 
@@ -359,8 +362,6 @@ void fsop_deleteFile(char *source)
 	if(fsop_FileExist(source))
 		remove(source);
 }
-
-extern char MIOS_Info[256];
 
 void refreshProgressBar()
 {
