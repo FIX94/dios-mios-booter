@@ -15,25 +15,46 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  ****************************************************************************/
-#ifdef __cplusplus
-extern "C"
+#include "GameList.hpp"
+
+const char* emptyChar = (const char*)" ";
+
+void GameList::AddEntry(string path, string gameid, string name)
 {
-#endif
-
-#ifndef SYS_H_
-#define SYS_H_
-
-s32 MagicPatches(s32);
-
-void Sys_Init(void);
-bool Sys_Exit(void);
-
-void Open_Inputs(void);
-void Close_Inputs(void);
-void Input_Reset(void);
-
-#endif //SYS_H_
-
-#ifdef __cplusplus
+	DirEnt entry;
+	entry.Path = path;
+	entry.GameID = gameid;
+	entry.Name = name;
+	DirEntries.push_back(entry);
 }
-#endif
+
+void GameList::ClearEntries()
+{
+	DirEntries.clear();
+}
+
+u32 GameList::GetEntrySize()
+{
+	return DirEntries.size();
+}
+
+const char *GameList::GetEntryPath(u32 position)
+{
+	if(position < DirEntries.size())
+		return DirEntries.at(position).Path.c_str();
+	return emptyChar;
+}
+
+const char *GameList::GetEntryName(u32 position)
+{
+	if(position < DirEntries.size())
+		return DirEntries.at(position).Name.c_str();
+	return emptyChar;
+}
+
+const char *GameList::GetEntryID(u32 position)
+{
+	if(position < DirEntries.size())
+		return DirEntries.at(position).GameID.c_str();
+	return emptyChar;
+}

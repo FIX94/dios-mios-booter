@@ -17,7 +17,12 @@ include $(DEVKITPPC)/wii_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	boot
 BUILD		:=	build
-SOURCES		:=	source
+SOURCES		:=	source \
+				source/DeviceMounter \
+				source/GameList \
+				source/Memory \
+				source/Menu
+
 DATA		:=	data  
 INCLUDES	:=	source
 
@@ -25,21 +30,21 @@ INCLUDES	:=	source
 # options for code generation
 #---------------------------------------------------------------------------------
 
-CFLAGS   = -g -O2 -Wall -Wextra $(MACHDEP) $(INCLUDE)
+CFLAGS   = -g -Os -Wall -Wextra $(MACHDEP) $(INCLUDE)
 CXXFLAGS = $(CFLAGS)
 
-LDFLAGS	= -g $(MACHDEP) -Wl,-Map,$(notdir $@).map
+LDFLAGS	= -g $(MACHDEP) -Wl,-Map,$(notdir $@).map,--section-start,.init=0x80A00000,-wrap,malloc,-wrap,free,-wrap,memalign,-wrap,calloc,-wrap,realloc,-wrap,malloc_usable_size
 
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:= -lwiiuse -lm -lbte -logc -lfat
+LIBS	:= -lwiiuse -lm -lbte -logc -lcustomfat
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:= $(DEVKITPPC)/lib $(CURDIR)
+LIBDIRS	:= $(CURDIR)/portlibs
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
