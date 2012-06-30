@@ -148,10 +148,11 @@ void Menu::ReadGameDir()
 				title.append(" (ISO)");
 			}
 
-			List.AddEntry(string(gamePath), GameID, string(title));
+			List.AddEntry(string(gamePath), GameID, title);
 			infile.close();
 		}
 	}
+	List.SortEntries();
 }
 
 int Menu::BootGame()

@@ -15,6 +15,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  ****************************************************************************/
+#include <stdio.h>
+#include <string.h>
+#include <algorithm>
+
 #include "GameList.hpp"
 
 const char* emptyChar = (const char*)" ";
@@ -31,6 +35,17 @@ void GameList::AddEntry(string path, string gameid, string name)
 void GameList::ClearEntries()
 {
 	DirEntries.clear();
+}
+
+static bool SortCompare(const DirEnt& One, const DirEnt& Two)
+{
+	return One.Name < Two.Name;
+}
+
+void GameList::SortEntries()
+{
+	if(DirEntries.size() > 2)
+		sort(DirEntries.begin()+1, DirEntries.end(), SortCompare); //+1 for dvd as first
 }
 
 u32 GameList::GetEntrySize()

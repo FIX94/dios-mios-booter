@@ -37,6 +37,7 @@ class GameList
 public:
 	void AddEntry(string path, string gameid, string name);
 	void ClearEntries();
+	void SortEntries();
 	const char *GetEntryPath(u32 position);
 	const char *GetEntryName(u32 position);
 	const char *GetEntryID(u32 position);
