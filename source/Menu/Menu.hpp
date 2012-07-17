@@ -1,6 +1,6 @@
 /****************************************************************************
  * DIOS-MIOS Booter - A small and easy DIOS-MIOS (Lite) Game Booter
- * Copyright (C) 2012  FIX94
+ * Copyright (C) 2012 FIX94
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,13 +58,9 @@ private:
 	void SetOption(u32 Option, u8 direction);
 	const char *GetOption(u32 Option);
 
-	string GetLanguage();
-	void NextLanguage();
-	void PrevLanguage();
-
-	string GetVideoMode();
-	void NextVideoMode();
-	void PrevVideoMode();
+	string GetOptionFromString(vector<string> List, string *Option, u8 *Option_num);
+	void NextOptionFromString(vector<string> List, string *Option, u8 *Option_num);
+	void PrevOptionFromString(vector<string> List, string *Option, u8 *Option_num);
 
 	void ReadConfig(const char *Domain);
 	void WriteConfig(const char *Domain);
@@ -76,12 +72,16 @@ private:
 	void GameOptionsMenu();
 
 	bool Autoboot;
-	bool OldDML;
 	bool DriveReset;
 	bool NTSCJ_Patch;
 
 	u8 GC_Video_Mode;
 	u8 GC_Language;
+	u8 DM_Mode;
+	u8 DM_Patch;
+
+	bool DM_NoDisc;
+	bool DM_ForceWide;
 
 	/* General */
 	int CheckMIOS();

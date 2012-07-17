@@ -1,6 +1,6 @@
 /****************************************************************************
  * DIOS-MIOS Booter - A small and easy DIOS-MIOS (Lite) Game Booter
- * Copyright (C) 2012  FIX94
+ * Copyright (C) 2012 FIX94
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ syssram* __SYS_LockSram();
 u32 __SYS_UnlockSram(u32 write);
 u32 __SYS_SyncSram(void);
 
-void GC_SetVideoMode(u8 videomode, DML_CFG *BooterCFG)
+void GC_SetVideoMode(u8 videomode, DML_CFG *BooterCFG, u8 DM_Patch)
 {
 	syssram *sram;
 	sram = __SYS_LockSram();
@@ -51,28 +51,33 @@ void GC_SetVideoMode(u8 videomode, DML_CFG *BooterCFG)
 
 	if(videomode == 1)
 	{
-		BooterCFG->VideoMode |= DML_VID_FORCE_PAL50;
+		if(DM_Patch == VIDEO_PATCH_FORCE)
+			BooterCFG->VideoMode |= DML_VID_FORCE_PAL50;
 		rmode = &TVPal528IntDf;
 	}
 	else if(videomode == 2)
 	{
-		BooterCFG->VideoMode |= DML_VID_FORCE_NTSC;
+		if(DM_Patch == VIDEO_PATCH_FORCE)
+			BooterCFG->VideoMode |= DML_VID_FORCE_NTSC;
 		rmode = &TVNtsc480IntDf;
 	}
 	else if(videomode == 3)
 	{
-		BooterCFG->VideoMode |= DML_VID_FORCE_PAL60;
+		if(DM_Patch == VIDEO_PATCH_FORCE)
+			BooterCFG->VideoMode |= DML_VID_FORCE_PAL60;
 		rmode = &TVEurgb60Hz480IntDf;
 		memflag = 5;
 	}
 	else if(videomode == 4 ||videomode == 6)
 	{
-		BooterCFG->VideoMode |= DML_VID_FORCE_PROG;
+		if(DM_Patch == VIDEO_PATCH_FORCE)
+			BooterCFG->VideoMode |= DML_VID_FORCE_PROG;
 		rmode = &TVNtsc480Prog;
 	}
 	else if(videomode == 5 || videomode == 7)
 	{
-		BooterCFG->VideoMode |= DML_VID_FORCE_PROG;
+		if(DM_Patch == VIDEO_PATCH_FORCE)
+			BooterCFG->VideoMode |= DML_VID_FORCE_PROG;
 		rmode = &TVEurgb60Hz480Prog;
 		memflag = 5;
 	}

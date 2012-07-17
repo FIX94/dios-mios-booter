@@ -1,6 +1,6 @@
 /****************************************************************************
  * DIOS-MIOS Booter - A small and easy DIOS-MIOS (Lite) Game Booter
- * Copyright (C) 2012  FIX94
+ * Copyright (C) 2012 FIX94
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -179,7 +179,7 @@ int Menu::BootGame()
 		BooterCFG->VideoMode |= DML_VID_PROG_PATCH;
 
 	/* Set DML Options */
-	if(OldDML && position > 1)
+	if(DM_Mode == CFG_OLD && position > 1)
 		DML_Old_SetOptions(List.GetEntryID(position - 1));
 
 	UnMountDevices();
@@ -207,19 +207,39 @@ int Menu::BootGame()
 	if(GC_Video_Mode == 0)
 	{
 		if(List.GetEntryID(position - 1)[3] == 'P')
-			GC_SetVideoMode(1, BooterCFG);
+			GC_SetVideoMode(1, BooterCFG, DM_Patch);
 		else
-			GC_SetVideoMode(2, BooterCFG);
+			GC_SetVideoMode(2, BooterCFG, DM_Patch);
 	}
 	else
-		GC_SetVideoMode(GC_Video_Mode, BooterCFG);
+		GC_SetVideoMode(GC_Video_Mode, BooterCFG, DM_Patch);
 
 	/* Set GC Lanugage */
 	GC_SetLanguage(GC_Language);
 
 	/* Write our options into memory */
-	if(!OldDML)
+	if(DM_Patch == VIDEO_PATCH_NONE)
+		BooterCFG->VideoMode |= DML_VID_NONE;
+	else if(DM_Patch == VIDEO_PATCH_AUTO)
+		BooterCFG->VideoMode |= DML_VID_DML_AUTO;
+	else if(DM_Patch == VIDEO_PATCH_FORCE)
+		BooterCFG->VideoMode |= DML_VID_FORCE;
+
+	if(DM_Mode == CFG_NEW_V1)
+	{
+		BooterCFG->CfgVersion = 0x00000001;
+		if(DM_NoDisc)
+			BooterCFG->Config |= DML_CFG_NODISC;
 		DML_New_WriteOptions(BooterCFG);
+	}
+	else if(DM_Mode == CFG_NEW_V2)
+	{
+		BooterCFG->CfgVersion = 0x00000002;
+		if(DM_ForceWide)
+			BooterCFG->Config |= DML_CFG_FORCE_WIDE;
+		DML_New_WriteOptions(BooterCFG);
+	}
+
 	MEM2_free(BooterCFG);
 
 	/* NTSC-J Patch */

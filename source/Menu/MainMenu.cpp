@@ -1,6 +1,6 @@
 /****************************************************************************
  * DIOS-MIOS Booter - A small and easy DIOS-MIOS (Lite) Game Booter
- * Copyright (C) 2012  FIX94
+ * Copyright (C) 2012 FIX94
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,16 +29,12 @@ void Menu::InitMain()
 
 	BooterCFG = (DML_CFG*)MEM2_alloc(sizeof(DML_CFG));
 	memset(BooterCFG, 0, sizeof(DML_CFG));
-
 	BooterCFG->Magicbytes = 0xD1050CF6;
-	BooterCFG->CfgVersion = 0x00000001;
-	BooterCFG->VideoMode |= DML_VID_FORCE;
 
 	currentDev = SD;
 	currentMenu = MENU_MAIN;
 
 	DriveReset = true;
-	OldDML = false;
 	NTSCJ_Patch = false;
 
 	for(u8 i = 0; i < 76; i++)
