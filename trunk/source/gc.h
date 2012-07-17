@@ -1,6 +1,6 @@
 /****************************************************************************
  * DIOS-MIOS Booter - A small and easy DIOS-MIOS (Lite) Game Booter
- * Copyright (C) 2012  FIX94
+ * Copyright (C) 2012 FIX94
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ extern "C"
 typedef struct DML_CFG
 {
 	u32 Magicbytes;			//0xD1050CF6
-	u32 CfgVersion;			//0x00000001
+	u32 CfgVersion;			//0x00000001 (v1)/0x00000002 (v2)
 	u32 VideoMode;
 	u32 Config;
 	char GamePath[255];
@@ -51,9 +51,11 @@ enum dmlconfig
 	DML_CFG_CHEAT_PATH	= (1<<6),
 	DML_CFG_ACTIVITY_LED= (1<<7),
 	DML_CFG_PADHOOK		= (1<<8),
-	DML_CFG_NODISC		= (1<<9),
+	DML_CFG_NODISC		= (1<<9), //v1
+	DML_CFG_FORCE_WIDE	= (1<<9), //v2
 	DML_CFG_BOOT_DISC	= (1<<10),
-	DML_CFG_BOOT_DOL	= (1<<11),
+	DML_CFG_BOOT_DOL	= (1<<11), //v1
+	DML_CFG_BOOT_DISC2	= (1<<11), //v2
 };
 
 enum dmlvideomode
@@ -69,8 +71,22 @@ enum dmlvideomode
 	DML_VID_PROG_PATCH	= (1<<4),
 };
 
+enum
+{
+	VIDEO_PATCH_NONE = 0,
+	VIDEO_PATCH_AUTO,
+	VIDEO_PATCH_FORCE,
+};
+
+enum
+{
+	CFG_OLD = 0,
+	CFG_NEW_V1,
+	CFG_NEW_V2,
+};
+
 void GC_SetLanguage(u8 lang);
-void GC_SetVideoMode(u8 videomode, DML_CFG *DMLCfg);
+void GC_SetVideoMode(u8 videomode, DML_CFG *DMLCfg, u8 DM_Patch);
 void DML_New_WriteOptions(DML_CFG *DMLCfg);
 void DML_Old_SetOptions(const char *GameID);
 #endif //GC_H_

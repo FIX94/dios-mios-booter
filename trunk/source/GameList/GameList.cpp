@@ -1,6 +1,6 @@
 /****************************************************************************
  * DIOS-MIOS Booter - A small and easy DIOS-MIOS (Lite) Game Booter
- * Copyright (C) 2012  FIX94
+ * Copyright (C) 2012 FIX94
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
