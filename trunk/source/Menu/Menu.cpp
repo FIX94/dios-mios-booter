@@ -280,6 +280,6 @@ int Menu::CheckMIOS()
 
 void Menu::UnMountDevices()
 {
-	DevHandler.UnMountSD();
-	DevHandler.UnMountUSB();
+	DevHandler->UnMountSD();
+	DevHandler->UnMountUSB();
 }

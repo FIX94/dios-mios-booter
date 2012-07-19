@@ -221,7 +221,7 @@ void Menu::WriteConfig(const char *Domain)
 	BooterINI.setBool(Domain, "Wait_for_Debugger", (BooterCFG->Config & DML_CFG_DEBUGWAIT));
 
 	BooterINI.setBool("GENERAL", "usb", currentDev);
-	if(DevHandler.SD_Mounted() || DevHandler.USB_Mounted())
+	if(DevHandler->SD_Mounted() || DevHandler->USB_Mounted())
 		BooterINI.save(false);
 }
 
