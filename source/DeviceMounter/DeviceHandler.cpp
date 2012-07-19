@@ -23,60 +23,80 @@
  *
  * for WiiXplorer 2010
  ***************************************************************************/
-
+#include <malloc.h>
 #include <unistd.h>
 #include <string.h>
 #include <ogc/mutex.h>
 #include <ogc/system.h>
 #include <sdcard/gcsd.h>
 #include <sdcard/wiisd_io.h>
-
 #include "DeviceHandler.hpp"
 
-void DeviceHandler::Init()
+DeviceHandler *DevHandler;
+
+DeviceHandler::DeviceHandler()
 {
 	sd = NULL;
 	usb = NULL;
 }
 
+DeviceHandler::~DeviceHandler()
+{
+	UnMountSD();
+	UnMountUSB();
+}
+
 bool DeviceHandler::MountSD()
 {
-	if(sd == NULL)
+    if(!sd)
 	{
 		sd = new PartitionHandle(&__io_wiisd);
 		if(sd->GetPartitionCount() < 1)
 		{
+			delete sd;
 			sd = NULL;
 			return false;
 		}
-		return sd->MountFAT(DeviceName[SD]);
-	}
-	return false;
-}
+    }
 
-void DeviceHandler::UnMountSD()
-{
-	if(sd != NULL)
-		sd->UnMount();
+	//! Mount only one SD Partition
+	return sd->Mount(0, DeviceName[SD], true);
 }
 
 bool DeviceHandler::MountUSB()
 {
-	if(usb == NULL)
+	bool deviceAvailable = false;
+	u8 timeout = 0;
+	const DISC_INTERFACE *handle = GetUSBInterface();
+	while(!deviceAvailable && timeout++ != 20)
 	{
-		usb = new PartitionHandle(&__io_usbstorage);
-		if(usb->GetPartitionCount() < 1)
-		{
-			usb = NULL;
-			return false;
-		}
-		return usb->MountFAT(DeviceName[USB]);
+		deviceAvailable = (handle->startup() && handle->isInserted());
+		if(deviceAvailable)
+			break;
+		usleep(50000);
 	}
+	usb = new PartitionHandle(handle);
+	if(usb->GetPartitionCount() < 1)
+	{
+		delete usb;
+		usb = NULL;
+		return false;
+	}
+
+	int partCount = GetUSBPartitionCount();
+	for(int i = 0; i < partCount; i++)
+	{
+		if(usb->Mount(i, DeviceName[USB], true))
+			return true;
+	}
+
 	return false;
 }
 
-void DeviceHandler::UnMountUSB()
+u16 DeviceHandler::GetUSBPartitionCount()
 {
-    if(usb != NULL)
-		usb->UnMount();
+	u16 partCount = 0;
+	if(usb)
+		partCount = usb->GetPartitionCount();
+	return partCount;
 }

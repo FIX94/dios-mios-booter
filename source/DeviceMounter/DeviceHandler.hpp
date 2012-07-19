@@ -28,35 +28,54 @@
 
 #include "PartitionHandle.h"
 
+/**
+ * libogc device names.
+ */
 enum
 {
-    SD = 0,
-    USB,
+	SD = 0,
+	USB,
+	MAXDEVICES
 };
 
-const char DeviceName[2][6] =
+/**
+ * libogc device names.
+ */
+const char DeviceName[MAXDEVICES][8] =
 {
-    "sd",
-    "usb",
+	"sd",
+	"usb",
 };
 
 class DeviceHandler
 {
-public:
-	void Init();
+	public:
+		DeviceHandler();
+		~DeviceHandler();
 
-	bool MountSD();
-	bool MountUSB();
+		//! Individual Mounts/UnMounts...
+		bool MountSD();
+		bool MountUSB();
 
-	bool SD_Mounted() { if(sd != NULL) return sd->IsMounted(); return false; };
-	bool USB_Mounted() { if(usb != NULL) return usb->IsMounted(); return false; };
+		bool SD_Inserted() { if(sd) return sd->IsInserted(); return false; }
+		bool USB_Inserted() { if(usb) return usb->IsInserted(); return false; }
 
-	void UnMountSD();
-	void UnMountUSB();
+		bool SD_Mounted() { if(sd) return sd->IsMounted(); return false; }
+		bool USB_Mounted() { if(usb) return usb->IsMounted(); return false; }
 
-private:
-	PartitionHandle *sd;
-	PartitionHandle *usb;
+		void UnMountSD() { if(sd) delete sd; sd = NULL; }
+		void UnMountUSB() { if(usb) delete usb; usb = NULL; }
+
+		PartitionHandle * GetSDHandle() const { return sd; }
+		PartitionHandle * GetUSBHandle() const { return usb; }
+
+		const DISC_INTERFACE *GetUSBInterface() { return &__io_usbstorage; }
+		u16 GetUSBPartitionCount();
+	private:
+		PartitionHandle *sd;
+		PartitionHandle *usb;
 };
+
+extern DeviceHandler *DevHandler;
 
 #endif

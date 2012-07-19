@@ -24,13 +24,13 @@ static u32 listsize = 12;
 void Menu::InitMain()
 {
 	InitOptions();
-	DevHandler.Init();
 	CheckMIOS();
 
 	BooterCFG = (DML_CFG*)MEM2_alloc(sizeof(DML_CFG));
 	memset(BooterCFG, 0, sizeof(DML_CFG));
 	BooterCFG->Magicbytes = 0xD1050CF6;
 
+	DevHandler = new DeviceHandler;
 	currentDev = SD;
 	currentMenu = MENU_MAIN;
 
@@ -53,17 +53,17 @@ void Menu::InitMain()
 	listposition = 1;
 	AutobootTimeout = 0;
 
-	if(DevHandler.MountSD())
+	if(DevHandler->MountSD())
 		BooterINI.load("sd:/dios-mios-booter.ini");
-	else if(DevHandler.MountUSB())
+	else if(DevHandler->MountUSB())
 		BooterINI.load("usb:/dios-mios-booter.ini");
 
 	if(!Autoboot)
 		ReadConfig("GENERAL");
 	else
 		ReadConfig(AUTOBOOT_GAME_ID);
-	if(currentDev && !DevHandler.USB_Mounted())
-		DevHandler.MountUSB();
+	if(currentDev && !DevHandler->USB_Mounted())
+		DevHandler->MountUSB();
 
 	ReadGameDir();
 	if(Autoboot)
@@ -160,8 +160,8 @@ void Menu::MainMenu()
 		{
 			currentDev = (currentDev == 0) ? 1 : 0;
 			WriteConfig("GENERAL");
-			if(currentDev && !DevHandler.USB_Mounted())
-				DevHandler.MountUSB();
+			if(currentDev && !DevHandler->USB_Mounted())
+				DevHandler->MountUSB();
 			ReadGameDir();
 			position = 1;
 			listposition = 1;
