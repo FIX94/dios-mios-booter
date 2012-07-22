@@ -18,6 +18,7 @@
 #include "Menu.hpp"
 #include "Memory/mem2.hpp"
 #include "defines.h"
+#include "fileOps.h"
 
 static u32 listsize = 12;
 
@@ -33,9 +34,6 @@ void Menu::InitMain()
 	DevHandler = new DeviceHandler;
 	currentDev = SD;
 	currentMenu = MENU_MAIN;
-
-	DriveReset = true;
-	NTSCJ_Patch = false;
 
 	for(u8 i = 0; i < 76; i++)
 		listlimits[i] = '#';
@@ -54,9 +52,17 @@ void Menu::InitMain()
 	AutobootTimeout = 0;
 
 	if(DevHandler->MountSD())
-		BooterINI.load("sd:/dios-mios-booter.ini");
+	{
+		fsop_MakeFolder((char*)"sd:/dm_booter");
+		BooterINI.load("sd:/dm_booter/config.ini");
+		CustomTitles.load("sd:/dm_booter/titles.txt");
+	}
 	else if(DevHandler->MountUSB())
-		BooterINI.load("usb:/dios-mios-booter.ini");
+	{
+		fsop_MakeFolder((char*)"usb:/dm_booter");
+		BooterINI.load("usb:/dm_booter/config.ini");
+		CustomTitles.load("usb:/dm_booter/titles.txt");
+	}
 
 	if(!Autoboot)
 		ReadConfig("GENERAL");
@@ -114,7 +120,10 @@ void Menu::MainMenu()
 			if(WPAD_ButtonsDown(0) || PAD_ButtonsDown(0))
 				MainMenuAutoboot = false;
 			if(time(NULL) >= AutobootTimeout)
+			{
+				currentMenu = MENU_NONE;
 				break;
+			}
 			VIDEO_WaitVSync();
 			continue;
 		}
