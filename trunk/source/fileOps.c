@@ -147,7 +147,7 @@ bool fsop_DirExist(char *path)
 
 bool fsop_MakeFolder(char *path)
 {
-	if(mkdir(path, S_IREAD | S_IWRITE) == 0)
+	if(fsop_DirExist(path) || mkdir(path, S_IREAD | S_IWRITE) == 0)
 		return true;
 
 	return false;

@@ -92,6 +92,7 @@ private:
 	Config BooterINI;
 	DML_CFG *BooterCFG;
 	GameList List;
+	Config CustomTitles;
 
 	char MIOS_Info[256];
 	char listlimits[77];

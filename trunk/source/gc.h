@@ -51,11 +51,12 @@ enum dmlconfig
 	DML_CFG_CHEAT_PATH	= (1<<6),
 	DML_CFG_ACTIVITY_LED= (1<<7),
 	DML_CFG_PADHOOK		= (1<<8),
-	DML_CFG_NODISC		= (1<<9), //v1
+	DML_CFG_NODISC_CFG1	= (1<<9),
 	DML_CFG_FORCE_WIDE	= (1<<9), //v2
 	DML_CFG_BOOT_DISC	= (1<<10),
 	DML_CFG_BOOT_DOL	= (1<<11), //v1
 	DML_CFG_BOOT_DISC2	= (1<<11), //v2
+	DML_CFG_NODISC_CFG2	= (1<<12),
 };
 
 enum dmlvideomode

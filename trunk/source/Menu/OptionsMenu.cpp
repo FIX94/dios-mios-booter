@@ -63,7 +63,7 @@ void Menu::InitOptions()
 	OptionNameList.push_back("Activity LED        "); OptionList.push_back(DML_CFG_ACTIVITY_LED);
 	OptionNameList.push_back("Pad Hook            "); OptionList.push_back(DML_CFG_PADHOOK);
 
-	OptionNameList.push_back("No Disc    (DM 2.0-)"); OptionList.push_back(0x44495343); //DISC
+	OptionNameList.push_back("No Disc             "); OptionList.push_back(0x44495343); //DISC
 	OptionNameList.push_back("Widescreen (DM 2.1+)"); OptionList.push_back(0x57494445); //WIDE
 }
 
@@ -236,7 +236,7 @@ void Menu::ReadConfig(const char *Domain)
 		GC_Video_string = BooterINI.getString(Domain, "VideoMode", GC_Video_strings.at(0));
 		GetOptionFromString(GC_Video_strings, &GC_Video_string, &GC_Video_Mode);
 		//0x424F4F54 BOOT
-		DM_Mode_string = BooterINI.getString(Domain, "DM_Mode", DM_Mode_strings.at(1));
+		DM_Mode_string = BooterINI.getString(Domain, "DM_Mode", DM_Mode_strings.at(2));
 		GetOptionFromString(DM_Mode_strings, &DM_Mode_string, &DM_Mode);
 		//0x464F5243 FORC
 		DM_Patch_string = BooterINI.getString(Domain, "DM_Patch", DM_Patch_strings.at(1));
@@ -246,7 +246,7 @@ void Menu::ReadConfig(const char *Domain)
 		//0x57494445 WIDE
 		DM_ForceWide = BooterINI.getBool(Domain, "Widescreen", false);
 		//0x52455345 RESE
-		DriveReset = BooterINI.getBool(Domain, "Drive_Reset", true);
+		DriveReset = BooterINI.getBool(Domain, "Drive_Reset", false);
 		//0x4A415041 JAPA
 		NTSCJ_Patch = BooterINI.getBool(Domain, "NTSCJ_Patch", false);
 
@@ -286,8 +286,27 @@ void Menu::ReadConfig(const char *Domain)
 			BooterCFG->Config &= ~DML_CFG_DEBUGWAIT;
 		currentDev = BooterINI.getBool("GENERAL", "usb", false);
 	}
-	else
+	else //Write Default Config
+	{
+		//0x4C414E47 LANG
+		GC_Language_string = GC_Language_strings.at(0);
+		//0x56494445 VIDE
+		GC_Video_string = GC_Video_strings.at(0);
+		//0x424F4F54 BOOT
+		DM_Mode_string = DM_Mode_strings.at(2);
+		//0x464F5243 FORC
+		DM_Patch_string = DM_Patch_strings.at(1);
+		//0x44495343 DISC
+		DM_NoDisc = true;
+		//0x57494445 WIDE
+		DM_ForceWide = false;
+		//0x52455345 RESE
+		DriveReset = false;
+		//0x4A415041 JAPA
+		NTSCJ_Patch = false;
+		//Everything set, lets write it
 		WriteConfig(Domain);
+	}
 }
 
 

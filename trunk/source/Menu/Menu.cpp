@@ -61,6 +61,7 @@ void Menu::Start()
 			break;
 	}
 	BooterINI.unload();
+	CustomTitles.unload();
 }
 
 bool Menu::AbortOperation()
@@ -93,6 +94,7 @@ void Menu::ReadGameDir()
 	ifstream infile;
 	char infileBuffer[64];
 	char gamePath[1024];
+	bool SaveCustomTitles = false;
 
 	while(1)
 	{
@@ -129,10 +131,16 @@ void Menu::ReadGameDir()
 			string GameID(infileBuffer);
 
 			/* Game Title */
-			infile.seekg(0x20, ios::beg);
-			memset(infileBuffer, 0, sizeof(infileBuffer));
-			infile.read(infileBuffer, 64);
-			string title(infileBuffer);
+			string title = CustomTitles.getString("TITLES", GameID);
+			if(title.size() < 2)
+			{
+				infile.seekg(0x20, ios::beg);
+				memset(infileBuffer, 0, sizeof(infileBuffer));
+				infile.read(infileBuffer, 64);
+				CustomTitles.setString("TITLES", GameID, infileBuffer);
+				SaveCustomTitles = true;
+				title = infileBuffer;
+			}
 
 			/* Game Format */
 			if(strcasestr(gamePath, "boot.bin") != NULL)
@@ -153,6 +161,8 @@ void Menu::ReadGameDir()
 		}
 	}
 	List.SortEntries();
+	if(SaveCustomTitles && (DevHandler->SD_Mounted() || DevHandler->USB_Mounted()))
+		CustomTitles.save(false);
 }
 
 int Menu::BootGame()
@@ -229,7 +239,7 @@ int Menu::BootGame()
 	{
 		BooterCFG->CfgVersion = 0x00000001;
 		if(DM_NoDisc)
-			BooterCFG->Config |= DML_CFG_NODISC;
+			BooterCFG->Config |= DML_CFG_NODISC_CFG1;
 		DML_New_WriteOptions(BooterCFG);
 	}
 	else if(DM_Mode == CFG_NEW_V2)
@@ -237,6 +247,8 @@ int Menu::BootGame()
 		BooterCFG->CfgVersion = 0x00000002;
 		if(DM_ForceWide)
 			BooterCFG->Config |= DML_CFG_FORCE_WIDE;
+		if(DM_NoDisc)
+			BooterCFG->Config |= DML_CFG_NODISC_CFG2;
 		DML_New_WriteOptions(BooterCFG);
 	}
 
